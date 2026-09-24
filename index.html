@@ -99,6 +99,7 @@
   .cabeca h2 { font-size: 30px; margin: 0; letter-spacing: -.01em; }
   .cabeca p { margin: 4px 0 0; color: var(--suave); font-size: 16px; }
   .cabeca .espaco { flex: 1; }
+  .cabeca > .ladrilho + div { flex: 1 1 300px; min-width: 0; }
   .ladrilho {
     width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex: none;
     background: var(--azul-claro); color: var(--azul);
@@ -118,7 +119,7 @@
   .cartao-topo p { margin: 3px 0 0; color: var(--suave); font-size: 14px; }
   .cartao-topo .espaco { flex: 1; }
   .cartao-topo > .ladrilho + div { flex: 1 1 260px; min-width: 0; }
-  .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grade-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
   .grade-2 > .cartao { margin-bottom: 0; }
   .grade-2 + .grade-2, .grade-2 + .cartao, .cartao + .grade-2 { margin-top: 18px; }
   .lado { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
@@ -205,14 +206,14 @@
   .previa pre { margin: 0; white-space: pre-wrap; font: 14px/1.5 Consolas, "Courier New", monospace; }
 
   /* ---------- 1. Colar ---------- */
-  .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 18px; }
+  .numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
   .numero { display: flex; gap: 14px; align-items: center; background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; box-shadow: var(--sombra); }
   .numero .grande { font-size: 26px; font-weight: 700; line-height: 1.1; }
   .numero .t { font-weight: 600; }
   .numero .s { font-size: 14px; color: var(--suave); }
   .numero .ponto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22a052; margin-right: 6px; }
   #entrada { min-height: 260px; }
-  .mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .mini > div { border: 1px solid var(--borda); border-radius: 12px; padding: 14px; display: flex; gap: 10px; align-items: flex-start; }
   .mini .n { font-size: 24px; font-weight: 700; line-height: 1.1; }
   .mini .s { font-size: 13px; color: var(--suave); }
@@ -232,7 +233,7 @@
   .msg.vermelho { border-left-color: var(--vermelho); }
   .msg-topo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
   .msg-topo h3 { font-size: 26px; margin: 0; letter-spacing: -.01em; }
-  .campos { display: grid; grid-template-columns: 1.7fr 1.2fr 1fr 1fr 1fr 1fr; gap: 14px; margin: 18px 0; }
+  .campos { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 18px 0; }
   .msg hr { border: 0; border-top: 1px solid var(--borda); margin: 6px 0 16px; }
   .ausentes-titulo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; margin-bottom: 8px; }
   .ausentes-titulo svg.i { color: var(--azul); width: 24px; height: 24px; }
@@ -244,7 +245,7 @@
   details.original pre { white-space: pre-wrap; background: #f3f5f9; padding: 12px; border-radius: 8px; font-size: 13px; }
 
   /* ---------- 3. Dia ---------- */
-  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
   .kpi { display: flex; gap: 14px; background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; box-shadow: var(--sombra); }
   .kpi .rot { font-size: 14px; color: var(--suave); }
   .kpi .valor { font-size: 30px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -295,11 +296,15 @@
   svg.grafico text.meta-txt { fill: var(--vermelho); font-weight: 600; }
 
   /* ---------- Ajustes ---------- */
-  .checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px; }
+  .checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px; }
   .checks label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .checks input { width: 18px; height: 18px; margin: 0; }
 
   .so-impressao { display: none; }
+  .so-celular { display: none; }
+  table.time-dia th:first-child, table.time-dia td:first-child { position: sticky; left: 0; background: var(--cartao); z-index: 1; box-shadow: 1px 0 0 var(--borda); }
+  table.time-dia thead th:first-child { background: #f3f5f9; }
+  .dica-rolar { display: none; font-size: 13px; color: var(--fraco); margin-top: 6px; }
 
   /* ---------- Login e usuário ---------- */
   #telaLogin {
@@ -332,7 +337,7 @@
   #estadoSinc.ok { color: var(--verde); border-color: var(--verde-borda); background: var(--verde-claro); }
   #estadoSinc.atencao { color: var(--amarelo); border-color: var(--amarelo-borda); background: var(--amarelo-claro); }
   #estadoSinc.erro { color: var(--vermelho); border-color: var(--vermelho-borda); background: var(--vermelho-claro); }
-  @media (max-width: 800px) {
+  @media (max-width: 900px) {
     .marca { gap: 10px; }
     .marca p { display: none; }
     .marca h1 { font-size: 18px; }
@@ -350,26 +355,161 @@
   }
 
   @media (max-width: 1100px) {
-    .kpis { grid-template-columns: repeat(3, 1fr); }
-    .campos { grid-template-columns: 1fr 1fr 1fr; }
-    .lado { grid-template-columns: 1fr; }
-    .numeros { grid-template-columns: 1fr 1fr; }
+    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+    .lado { grid-template-columns: minmax(0, 1fr); }
+    .numeros { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .passo { min-width: 0; }
     .passo .sub { display: none; }
     .passo .bola { width: 36px; height: 36px; font-size: 15px; }
     .marca .pilula.data { display: none; }
+    .marca p { display: none; }
+    .marca h1 { white-space: nowrap; }
+    #estadoExcel > span { display: none; }
+    .passo { gap: 8px; padding-right: 8px; }
+    .passo + .passo { padding-left: 8px; }
   }
   @media (max-width: 800px) {
     .envolve { padding: 0 16px; }
-    .numeros, .mini { grid-template-columns: 1fr 1fr; }
-    .kpis { grid-template-columns: 1fr 1fr; }
-    .grade-2, .busca { grid-template-columns: 1fr; }
+    .numeros, .mini { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .kpi.destaque { grid-column: 1 / -1; }
+    .grade-2, .busca { grid-template-columns: minmax(0, 1fr); }
     .grade-2 > .cartao + .cartao { margin-top: 0; }
-    .campos { grid-template-columns: 1fr 1fr; }
-    .checks { grid-template-columns: 1fr 1fr; }
+    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .checks { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .marca .pilula.data { display: none; }
     .cabeca h2 { font-size: 24px; }
   }
+  /* ---------- Celular ---------- */
+  @media (max-width: 600px) {
+    body { font-size: 15px; }
+    .envolve { padding: 0 12px; }
+    header.topo { padding-top: env(safe-area-inset-top); }
+    .marca { padding: 10px 0; }
+    .marca h1 { font-size: 17px; line-height: 1.2; white-space: normal; }
+    .marca > .logo + div { flex: 1 1 auto; min-width: 0; }
+    .marca .espaco { display: none; }
+    #btnUsuario > svg.i { display: none; }
+    #estadoExcel { display: none; } /* no celular o Excel é só "baixar cópia", em Ajustes */
+    main { padding: 16px 0 calc(40px + env(safe-area-inset-bottom)); }
+    textarea { font-size: 16px; } /* menos de 16px faz o iPhone dar zoom ao tocar */
+
+    .cabeca { gap: 12px; margin-bottom: 16px; flex-wrap: nowrap; align-items: flex-start; }
+    .cabeca h2 { font-size: 21px; line-height: 1.2; }
+    .cabeca p { font-size: 14px; }
+    .ladrilho.grande { width: 44px; height: 44px; border-radius: 12px; }
+    .ladrilho.grande svg.i { width: 22px; height: 22px; }
+    #aba-dia .cabeca { flex-wrap: wrap; }
+    .cabeca > .ladrilho + div { flex: 1 1 0; min-width: 0; }
+    .cabeca .espaco { display: none; }
+    #aba-dia .cabeca .datas { width: 100%; }
+    #aba-dia .cabeca .datas input { flex: 1; }
+
+    .cartao { padding: 14px; border-radius: 12px; margin-bottom: 14px; }
+    .grade-2 { gap: 14px; }
+    .grade-2 + .grade-2, .grade-2 + .cartao, .cartao + .grade-2 { margin-top: 14px; }
+    .cartao-topo { gap: 10px; margin-bottom: 12px; }
+    .cartao-topo h3 { font-size: 16px; }
+    .cartao-topo p { font-size: 13px; }
+    .cartao-topo .espaco { display: none; }
+    .cartao-topo > .linha, .cartao-topo > .botao, .cartao-topo > .datas, .cartao-topo > select { width: 100%; }
+    .ladrilho.p { width: 36px; height: 36px; border-radius: 9px; }
+    .ladrilho.p svg.i { width: 18px; height: 18px; }
+    .linha > .botao, .linha > label.botao { flex: 1 1 auto; }
+    .linha > .espaco { display: none; }
+    .botao { white-space: normal; text-align: center; }
+    .botao.g { padding: 12px 16px; font-size: 16px; }
+    #toast { left: 12px; right: 12px; transform: none; text-align: center; bottom: calc(16px + env(safe-area-inset-bottom)); }
+    pre.whats { font-size: 13px; padding: 12px; }
+    th, td { padding: 8px 6px; }
+    th { font-size: 13px; }
+
+    /* 1. Colar */
+    .numeros { gap: 10px; margin-bottom: 14px; }
+    .numero { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+    .numero .ladrilho { width: 36px; height: 36px; border-radius: 9px; }
+    .numero .grande { font-size: 22px; }
+    .numero .s { font-size: 13px; }
+    .numeros .numero:nth-child(2), .numeros .numero:nth-child(3) { display: none; } /* a caixa de colar sobe; a conferência já mostra o contador no menu */
+    #aba-colar .cartao-topo > [data-acao-colar] { display: none; } /* já tem "Colar exemplo" embaixo da caixa */
+    #entrada { min-height: 200px; }
+    .mini { gap: 8px; }
+    .mini > div { padding: 10px; }
+    .mini .n { font-size: 20px; }
+    .mini .ladrilho { display: none; }
+
+    /* 2. Conferência: cada pessoa vira um bloco empilhado */
+    .msg { padding: 14px; border-left-width: 4px; }
+    .msg-topo { gap: 8px; }
+    .msg-topo h3 { font-size: 19px; flex: 1 1 100%; }
+    .msg-topo .espaco { display: none; }
+    .msg-topo [data-acao="descartar"] { margin-left: auto; padding: 6px 12px; font-size: 14px; }
+    .caixa-aviso { padding: 10px 12px; gap: 8px; font-size: 14px; }
+    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin: 14px 0; }
+    .campos > div:first-child { grid-column: 1 / -1; }
+    .ausentes-titulo { font-size: 16px; }
+    .msg .tabela-rolar { overflow: visible; }
+    table.pessoas, table.pessoas tbody { display: block; }
+    table.pessoas thead { display: none; }
+    table.pessoas tr {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px 8px;
+      padding: 12px 0; border-bottom: 1px solid var(--borda); align-items: end;
+    }
+    table.pessoas td { padding: 0; border: 0; min-width: 0; }
+    table.pessoas td:nth-child(1) { grid-column: 1 / -1; }
+    table.pessoas td:nth-child(2) { grid-column: 1; }
+    table.pessoas td:nth-child(3) { grid-column: 2 / -1; }
+    table.pessoas td:nth-child(4) { grid-column: 1 / 3; }
+    table.pessoas td:nth-child(5) { grid-column: 3; }
+    table.pessoas td[data-rot]::before { content: attr(data-rot); display: block; font-size: 12px; color: var(--fraco); margin-bottom: 3px; }
+    .msg-rodape { flex-direction: column; align-items: stretch; }
+    .msg-rodape .espaco { display: none; }
+    .msg-rodape [data-acao="gravar"] { order: -1; }
+    #aba-conferencia > .linha { flex-direction: column; align-items: stretch; }
+
+    /* 3. Fechamento */
+    .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 14px; }
+    .kpi { padding: 12px; gap: 10px; flex-direction: column; }
+    .kpi .ladrilho { width: 34px; height: 34px; }
+    .kpi .valor { font-size: 24px; }
+    .kpi.destaque { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+    .kpi.destaque .valor { font-size: 30px; }
+    .mandou .texto { min-width: 0; flex: 1 1 100%; }
+    .mandou > .ladrilho { display: none; }
+    .resumo-tiles { width: 100%; gap: 8px; }
+    .tile { flex: 1 1 0; min-width: 0; padding: 10px; }
+    .tile .ladrilho { display: none; }
+    .col-barra, .col-pres { display: none; }
+    #conteudoDia td .botao.icone { width: 34px; height: 34px; padding: 6px; }
+    #conteudoDia td:first-child { min-width: 88px; }
+    #conteudoDia th, #conteudoDia td { padding: 8px 4px; font-size: 14px; }
+    #conteudoDia td .botao.icone { width: 30px; height: 30px; padding: 5px; }
+    .so-grande { display: none; }
+    .so-celular { display: inline; }
+
+    /* Histórico */
+    .busca { gap: 12px; }
+    .datas { width: 100%; gap: 8px; }
+    .datas label { flex: 1 1 140px; font-weight: 500; font-size: 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); }
+    #aba-dia .cabeca .datas { display: grid; grid-template-columns: 34px minmax(0, 1fr); }
+    .datas input { width: 100%; min-width: 0; }
+    .atalhos { gap: 6px; }
+    .atalhos .botao { flex: 1 1 auto; padding: 7px 10px; font-size: 14px; }
+    .faixa { flex-wrap: wrap; gap: 10px 14px; padding: 12px 14px; }
+    .faixa .valor { font-size: 26px; }
+    .faixa .extra { flex: 1 1 100%; }
+
+    #serieGrafico { width: 100% !important; min-width: 0 !important; }
+    .dica-rolar { display: block; }
+    table.time-dia td:first-child { max-width: 110px; }
+
+    /* Ajustes */
+    .checks { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    #modeloTime { min-width: 0 !important; width: 100% !important; }
+    #aba-ajustes .linha > label { flex: 1 1 100%; }
+  }
+
   @media print {
     body { background: #fff; font-size: 12px; }
     header.topo, nav.passos, #toast, .nao-imprimir, button, .atalhos, input[type="checkbox"] { display: none !important; }
@@ -377,7 +517,7 @@
     .cartao, .kpi, .numero { box-shadow: none; break-inside: avoid; }
     .so-impressao { display: block; }
     pre.whats { display: none; }
-    .kpis { grid-template-columns: repeat(5, 1fr); }
+    .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   }
 </style>
 </head>
@@ -477,7 +617,7 @@
           </div>
           <ol class="passos-lista">
             <li><span class="nb">1</span>Copie as mensagens do grupo do WhatsApp.</li>
-            <li><span class="nb">2</span>Cole no campo ao lado (pode ser várias mensagens).</li>
+            <li><span class="nb">2</span>Cole no campo "Mensagens brutas" (pode ser várias de uma vez).</li>
             <li><span class="nb">3</span>Clique em “Ler mensagens” para o sistema identificar.</li>
             <li><span class="nb">4</span>Revise os dados na próxima etapa (Conferência).</li>
           </ol>
@@ -1053,10 +1193,10 @@
         <tbody>
           ${m.pessoas.map((p, i) => `
           <tr data-i="${i}">
-            <td><input data-p="nome" value="${esc(p.nome)}" placeholder="Nome"></td>
-            <td><input data-p="matricula" value="${esc(p.matricula)}" inputmode="numeric" placeholder="Matrícula"></td>
-            <td><select data-p="motivo">${opcoesMotivo(p.motivo)}</select></td>
-            <td><input disabled value="${esc(p.motivoOriginal)}"></td>
+            <td data-rot="Nome"><input data-p="nome" value="${esc(p.nome)}" placeholder="Nome"></td>
+            <td data-rot="Matrícula"><input data-p="matricula" value="${esc(p.matricula)}" inputmode="numeric" placeholder="Matrícula"></td>
+            <td data-rot="Motivo"><select data-p="motivo">${opcoesMotivo(p.motivo)}</select></td>
+            <td data-rot="Escrito pelo líder"><input disabled value="${esc(p.motivoOriginal)}"></td>
             <td><button class="botao perigo icone" data-acao="tirarPessoa" title="Remover pessoa">${ic('trash')}</button></td>
           </tr>`).join('')}
         </tbody>
@@ -1276,16 +1416,16 @@
         <div class="cartao">
           <div class="cartao-topo"><div class="ladrilho p">${ic('chart')}</div><div><h3>Por time</h3><p>Resumo de presença e ausência por time.</p></div></div>
           <div class="tabela-rolar"><table>
-            <thead><tr><th>Time</th><th class="num">Total</th><th class="num">Presentes</th><th class="num">Ausentes</th>
-              <th class="centro" title="Ausentes no último lançamento do time">Antes</th><th class="num">%</th><th></th><th class="nao-imprimir"></th></tr></thead>
+            <thead><tr><th>Time</th><th class="num">Total</th><th class="num col-pres">Presentes</th><th class="num"><span class="so-grande">Ausentes</span><span class="so-celular">Aus.</span></th>
+              <th class="centro" title="Ausentes no último lançamento do time">Antes</th><th class="num">%</th><th class="col-barra"></th><th class="nao-imprimir"></th></tr></thead>
             <tbody>${r.times.map(t => {
               const acima = L.acimaDaMeta(t.faltas, t.efetivo, r.meta);
               return `<tr>
                 <td><b>${esc(t.time)}</b>${t.turno ? `<br><span style="color:var(--fraco);font-size:13px">${esc(t.turno)}</span>` : ''}</td>
-                <td class="num">${t.efetivo}</td><td class="num">${t.presentes}</td><td class="num">${t.ausentes}</td>
+                <td class="num">${t.efetivo}</td><td class="num col-pres">${t.presentes}</td><td class="num">${t.ausentes}</td>
                 <td class="centro">${antes(t)}</td>
                 <td class="num${acima ? ' acima' : ''}">${L.pct(t.faltas, t.efetivo)}</td>
-                <td><div class="barra"><span style="width:${(t.efetivo ? t.faltas / t.efetivo : 0) / maxPct * 100}%${acima ? ';background:var(--vermelho)' : ''}"></span></div></td>
+                <td class="col-barra"><div class="barra"><span style="width:${(t.efetivo ? t.faltas / t.efetivo : 0) / maxPct * 100}%${acima ? ';background:var(--vermelho)' : ''}"></span></div></td>
                 <td class="nao-imprimir"><button class="botao perigo icone" data-apagar="${esc(t.time)}" title="Apagar lançamento">${ic('trash')}</button></td>
               </tr>`; }).join('')}
             </tbody>
@@ -1400,7 +1540,8 @@
       return x && x.efetivo ? { d, v: x.faltas / x.efetivo } : null;
     }).filter(Boolean);
     if (!pontos.length) return vazio('chart', 'Sem dados para esse time no período.');
-    const W = 760, H = 260, E = 46, D = 16, T = 14, B = 34;
+    const larg = ($('#resultadoPeriodo').clientWidth || 760) - 32;
+    const W = Math.max(320, Math.min(760, larg)), H = W < 500 ? 220 : 260, E = 42, D = 12, T = 14, B = 30;
     const maxV = Math.max(...pontos.map(x => x.v), p.meta || 0, 0.01) * 1.15;
     const passo = maxV > 0.2 ? 0.05 : maxV > 0.08 ? 0.02 : 0.01;
     const topo = Math.ceil(maxV / passo) * passo;
@@ -1409,7 +1550,7 @@
     const grade = [];
     for (let v = 0; v <= topo + 1e-9; v += passo)
       grade.push(`<line class="grade" x1="${E}" x2="${W - D}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${E - 6}" y="${Y(v) + 4}" text-anchor="end">${L.pct(v, 1).replace(',0%', '%')}</text>`);
-    const cada = Math.ceil(pontos.length / 12);
+    const cada = Math.ceil(pontos.length / Math.max(4, Math.floor((W - E) / 58)));
     const rotulos = pontos.map((x, i) => i % cada ? '' : `<text x="${X_(i)}" y="${H - 12}" text-anchor="middle">${L.dataBR(x.d).slice(0, 5)}</text>`).join('');
     const linha = pontos.map((x, i) => `${i ? 'L' : 'M'}${X_(i).toFixed(1)},${Y(x.v).toFixed(1)}`).join(' ');
     const bolas = pontos.map((x, i) => `<circle class="pt${p.meta && x.v > p.meta ? ' acima' : ''}" cx="${X_(i)}" cy="${Y(x.v)}" r="4"><title>${L.dataBR(x.d)} (${L.DIAS_SEMANA[L.diaDaSemana(x.d)]}): ${L.pct(x.v, 1)}</title></circle>`).join('');
@@ -1466,13 +1607,14 @@
       </div>
       <div class="cartao">
         <div class="cartao-topo"><div class="ladrilho p">${ic('chart')}</div><div><h3>Absenteísmo por time</h3><p>Percentual de cada time por dia e no período selecionado.</p></div></div>
-        <div class="tabela-rolar"><table class="cinza">
+        <div class="tabela-rolar"><table class="cinza time-dia">
           <thead><tr><th>Time</th>${p.dias.map(d => `<th class="centro">${L.dataBR(d).slice(0, 5)}</th>`).join('')}<th class="centro">Período</th></tr></thead>
           <tbody>
             ${p.times.map(t => `<tr><td><b>${esc(t)}</b></td>${p.dias.map(d => `<td class="centro">${cel(t, d)}</td>`).join('')}<td class="centro"><b>${pc(p.porTime[t].faltas, p.porTime[t].efetivo)}</b></td></tr>`).join('')}
             <tr><td><b>Geral</b></td>${p.dias.map(d => `<td class="centro"><b>${pc(p.porDia[d].faltas, p.porDia[d].efetivo)}</b></td>`).join('')}<td class="centro"><b>${pc(p.faltas, p.efetivo)}</b></td></tr>
           </tbody>
         </table></div>
+        ${p.dias.length > 3 ? '<div class="dica-rolar">Arraste a tabela para o lado para ver os outros dias →</div>' : ''}
       </div>
       <div class="grade-2">
         <div class="cartao">
