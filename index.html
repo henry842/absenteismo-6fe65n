@@ -491,7 +491,10 @@
     /* Histórico */
     .busca { gap: 12px; }
     .datas { width: 100%; gap: 8px; }
-    .datas label { flex: 1 1 140px; font-weight: 500; font-size: 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); }
+    .datas label { flex: 1 1 100%; font-weight: 500; font-size: 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; }
+    /* iPhone: o campo de data ignora a largura se não tirar a aparência nativa */
+    input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; text-align: left; background: #fff; }
+    input[type="date"]::-webkit-date-and-time-value { text-align: left; }
     #aba-dia .cabeca .datas { display: grid; grid-template-columns: 34px minmax(0, 1fr); }
     .datas input { width: 100%; min-width: 0; }
     .atalhos { gap: 6px; }
