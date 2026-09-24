@@ -1392,14 +1392,17 @@
       return `<span class="${classeSeta[s]}" title="${L.dataBR(t.anterior.data)}: ${t.anterior.ausentes} ausente(s)">${t.anterior.ausentes} ${s}</span>`;
     };
     const geralAcima = L.acimaDaMeta(r.faltasQueContam, r.efetivo, r.meta);
-    const textoSup = L.textoSuperior(r, base.config.area);
+    const nomesSup = lerPreferencia('nomesSuperior') !== 'nao';
+    const textoSup = L.textoSuperior(r, base.config.area, { comNomes: nomesSup });
     // O que precisa de revisão antes de mandar para o superior
     const revisao = [];
     if (r.pendentes.length) revisao.push(`Ainda falta(m) ${r.pendentes.length} time(s): ${r.pendentes.join(', ')}. O texto ainda não está completo.`);
     for (const t of r.times) {
-      if (t.ausentes > t.pessoas.length) revisao.push(`${t.time}: ${t.ausentes} ausente(s), mas só ${t.pessoas.length} com nome. Faltam nomes no texto.`);
-      const semId = t.pessoas.filter(p => !p.matricula).length;
-      if (semId) revisao.push(`${t.time}: ${semId} pessoa(s) sem ID/matrícula.`);
+      if (nomesSup) {
+        if (t.ausentes > t.pessoas.length) revisao.push(`${t.time}: ${t.ausentes} ausente(s), mas só ${t.pessoas.length} com nome. Faltam nomes no texto.`);
+        const semId = t.pessoas.filter(p => !p.matricula).length;
+        if (semId) revisao.push(`${t.time}: ${semId} pessoa(s) sem ID/matrícula.`);
+      }
       const outros = t.pessoas.filter(p => p.motivo === 'Outros').length;
       if (outros) revisao.push(`${t.time}: ${outros} pessoa(s) com motivo "Outros". Confira o motivo certo.`);
     }
@@ -1451,7 +1454,10 @@
           <div class="ladrilho p">${ic('megafone')}</div>
           <div><h3>Texto para o superior</h3><p>Fechamento de todos os times juntos, no modelo que vai para a chefia.</p></div>
           <span class="espaco"></span>
-          <button class="botao" id="btnCopiarSuperior">${ic('copy')}Copiar texto para o superior</button>
+          <div class="linha">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer"><input type="checkbox" id="nomesSuperior" style="width:18px;height:18px" ${nomesSup ? 'checked' : ''}> Incluir nomes</label>
+            <button class="botao" id="btnCopiarSuperior">${ic('copy')}Copiar texto para o superior</button>
+          </div>
         </div>
         ${revisao.length
           ? revisao.map(t => `<div class="caixa-aviso amarelo">${ic('alert')}<span>${esc(t)}</span></div>`).join('')
@@ -1478,6 +1484,7 @@
       if (revisao.length && !confirm(`Ainda tem ${revisao.length} ponto(s) para revisar:\n\n${revisao.map(t => '• ' + t).join('\n')}\n\nCopiar mesmo assim?`)) return;
       aviso(await copiar(textoSup) ? 'Texto copiado. É só colar na conversa com o superior.' : 'Não consegui copiar.');
     };
+    $('#nomesSuperior').onchange = e => { gravarPreferencia('nomesSuperior', e.target.checked ? 'sim' : 'nao'); desenharDia(); };
     $('#comNomes').onchange = e => { desenharDia.comNomes = e.target.checked; desenharDia(); };
     ligarCobranca(cobranca);
     alvo.querySelectorAll('[data-apagar]').forEach(b => b.onclick = () => {

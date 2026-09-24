@@ -551,7 +551,9 @@
   // Fechamento do dia no formato que o supervisor manda para o superior
   // (o mesmo modelo da mensagem "ABSENTEÍSMO SUB MONTAGEM TURNO B").
   // "Faltas" é o total de quem faltou; as outras linhas são os motivos.
-  function textoSuperior(r, area) {
+  // opcoes.comNomes = false tira a lista de pessoas (fica só com os números)
+  function textoSuperior(r, area, opcoes) {
+    const comNomes = !(opcoes && opcoes.comNomes === false);
     const [a, m, d] = r.data.split('-');
     const c = {};
     for (const t of r.times) for (const p of t.pessoas) c[p.motivo] = (c[p.motivo] || 0) + 1;
@@ -572,7 +574,7 @@
     ];
     if (n('Outros')) L.push(`- Outros: ${n('Outros')}`);
     L.push(`- Total presente: ${r.presentes} colaboradores`);
-    for (const t of r.times) for (const p of t.pessoas) {
+    if (comNomes) for (const t of r.times) for (const p of t.pessoas) {
       L.push('', p.nome || '(sem nome)', `ID: ${p.matricula || '?'}`, `Motivo: ${p.motivo}`);
     }
     return L.join('\n');

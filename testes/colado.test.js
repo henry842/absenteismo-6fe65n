@@ -119,3 +119,15 @@ test('texto para o superior junta todos os times no modelo da SUB MONTAGEM', () 
   assert.deepEqual([volta.efetivo, volta.presentes, volta.ausentes, volta.pessoas.length], [90, 82, 8, 8]);
   assert.equal(L.conferir(volta).status, 'verde');
 });
+
+test('texto para o superior sem nomes: só os números', () => {
+  let b = L.baseVazia();
+  for (const m of L.lerMensagens(COLADO, { ano: 2026 }).slice(2)) b = L.gravar(b, m); // C7B e C1B
+  const r = L.resumoDoDia(b, '2026-09-24');
+  const com = L.textoSuperior(r, 'Sub Montagem Turno B');
+  const sem = L.textoSuperior(r, 'Sub Montagem Turno B', { comNomes: false });
+  assert.match(com, /Walter Teste\nID: 1000001/);
+  assert.doesNotMatch(sem, /Walter Teste|ID:|Motivo:/);
+  assert.ok(sem.endsWith('- Total presente: 70 colaboradores'));
+  assert.equal(sem, com.split('\n').slice(0, 13).join('\n'));
+});
