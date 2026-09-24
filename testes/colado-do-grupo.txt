@@ -1,0 +1,85 @@
+[24/09/2026, 16:58:48] ~Lider Um: ABSENTEÍSMO SUB MONTAGEM TURNO B 24/09/26
+
+- Efetivo previsto: 90 colaboradores
+- Atestados médicos: 2
+- Atraso de roteiro: 0
+- Atraso por motivo pessoal: 0
+- Atraso sem justificativa: 0
+- Faltas: 0
+- Faltas sem justificativa: 2 
+- Afastamento INSS: 0
+- Turno ADM: 0
+- Férias: 0
+- Total presente: 86 colaboradores
+
+Joao Exemplo da Silva -
+ID 1000011
+Motivo: Sem justificativa 
+
+Maria Teste dos Santos
+ID: 1000012
+Motivo: Atestado médico 
+
+Otavio Conceição 
+ID: 1000013
+Motivo: Atestado médico
+
+Gabriel Modelo 
+ID: 1000014
+Motivo: falta sem justificativa
+ [24/09/2026, 16:58:48] ~Lider Um: *Boa tarde*
+*Absenteísmo C5-
+*24/09/2026*
+*2° turno*
+
+*Previstas: 15*
+*Presentes: 12*
+
+Nome: Lara Ficticia Lima
+Matricula: 1000004
+Motivo: Atestado Medico
+
+Nome: Beatriz Costa Dos Inventada 
+Matrícula: 1000005
+Motivo: atestado médico 
+
+Nome: Renato Exemplo 
+Matrícula: 1000006
+Motivo: atestado médico
+ [24/09/2026, 16:58:49] ~Lider Um: *Absenteísmo C7B 24/09/2026*
+
+Total de pessoas: 46
+Total presente: 44
+Ausentes: 2
+
+Nome: Rui Teste 
+ID: 1000007
+Motivo: Atestado médico 
+
+Nome: Nina Exemplo 
+ID: 1000008
+Motivo: Atestado médico
+ [24/09/2026, 16:58:49] ~Lider Um: *Boa tarde!*
+*24/09/2026*
+*C1-B*
+
+*Quantidade total = 29*
+*Quantidade atestado = 3*
+*Quantidade atraso roteiro = 0*
+*Atraso motivo pessoal = 0*
+*Sem justificativa = 0*
+*Afastamento por INSS = 0*
+*Turno ADM = 0*
+*Total presente = 26*
+
+*Nome: Walter Teste*
+*Matrícula: 1000001*
+*Motivo: Atestado médico*
+
+*Nome: Ulisses Exemplo*
+*Matrícula: 1000002*
+*Motivo: Atestado médico*
+
+*Nome: Tiago Modelo*
+*Matrícula: 1000003*
+*Motivo: Atestado médico*

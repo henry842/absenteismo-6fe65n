@@ -1,0 +1,9 @@
+# Dados reais nunca vão para o GitHub (atestado é dado de saúde)
+*.xlsx
+*.xls
+*.csv
+*.json
+!manifest.webmanifest
+~$*
+testes/saida/
+.claude/
