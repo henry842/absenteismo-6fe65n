@@ -116,7 +116,7 @@ const TITULO = { pt: 'Central de Habilidades · BYD Camaçari', zh: '技能管�
   await setup();
   await cartela(true);
   await page.waitForTimeout(300);
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 1 });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 2 });
   // Mantém frames chegando mesmo com tela parada (um pixel que pisca)
   await page.evaluate(() => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;z-index:99999';
     document.body.appendChild(d); let k = 0; (function t() { d.style.background = (k++ % 2) ? '#00251e' : '#00251f'; requestAnimationFrame(t); })(); });
