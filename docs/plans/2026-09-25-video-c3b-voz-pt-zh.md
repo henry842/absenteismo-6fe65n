@@ -16,6 +16,16 @@
 - **Recebido:** amostra de voz do Henry (mensagem do WhatsApp com 14 s). Dá para clonar, porque o XTTS-v2 aceita a partir de ~6 s, mas 1 a 3 min deixam a voz bem mais parecida.
 - **Falta:** gerar a narração com a voz clonada (Tarefas 1 a 3). Isso está bloqueado pelos itens 2 e 3 abaixo. Depois de gerar a voz, basta rodar de novo `gravar.js` (que passa a usar os tempos reais dos áudios) e `montar.py`.
 
+## Voz escolhida: HeyGen
+
+O Henry clonou a própria voz no HeyGen. **ID da voz:** `496f8b1fa97448c3a426d62155664398`.
+
+Para gerar a narração aqui na sessão, faltam duas coisas no ambiente:
+- rede liberada para `api.heygen.com`, `upload.heygen.com` e os domínios de download dos arquivos (`*.heygen.com` e `*.heygen.ai`);
+- chave de API do HeyGen na variável de ambiente `HEYGEN_API_KEY`.
+
+Com isso, o script gera as 22 falas em PT e em ZH com esse ID, mede as durações e segue a partir da Tarefa 3. Sem mexer no ambiente, o Henry também pode gerar no HeyGen um vídeo por língua com o roteiro, com ~1 s de pausa entre as falas, e enviar o arquivo aqui. O áudio é extraído e cortado pelos silêncios.
+
 ## Bloqueios
 
 1. ~~**Amostra da voz.**~~ Recebida (14 s). Opcional: mandar 1 a 3 min de fala contínua, em lugar silencioso, para melhorar a semelhança. Não precisa gravar nada em chinês.
