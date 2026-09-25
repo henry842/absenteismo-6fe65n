@@ -61,12 +61,8 @@ if (window.top !== window.self) {
   trocarIcones();
 
   // ---------- Base local ----------
-  function completar(b) {
-    const nova = Object.assign(L.baseVazia(), b);
-    nova.cadastro = b.cadastro || {};
-    nova.config = Object.assign({ times: [], naoContam: ['Férias'], apelidos: {}, meta: null }, b.config || {});
-    return nova;
-  }
+  // Todo dado que entra (do aparelho, de backup ou da nuvem) passa pela limpeza do leitor
+  function completar(b) { return L.sanearBase(b); }
   function carregar() {
     try {
       const b = JSON.parse(localStorage.getItem(CHAVE));
@@ -511,8 +507,9 @@ if (window.top !== window.self) {
   function gravarMensagem(m) {
     // Aprende os motivos que o sistema não conhecia e o usuário corrigiu
     for (const p of m.pessoas) {
-      if (p.motivoEraDesconhecido && p.motivoOriginal && p.motivo !== 'Outros')
-        base.config.apelidos[L.dobrar(p.motivoOriginal).replace(/[.,;!]+$/g, '')] = p.motivo;
+      const chaveApelido = L.dobrar(p.motivoOriginal).replace(/[.,;!]+$/g, '');
+      if (p.motivoEraDesconhecido && chaveApelido && p.motivo !== 'Outros' && !['__proto__', 'constructor', 'prototype'].includes(chaveApelido))
+        base.config.apelidos[chaveApelido] = p.motivo;
     }
     base = L.gravar(base, m);
     salvar();
@@ -783,7 +780,7 @@ if (window.top !== window.self) {
     const piorDia = p.porDiaSemana.length > 1 ? p.porDiaSemana.slice().sort((a, b) => b.faltas / b.efetivo - a.faltas / a.efetivo)[0].nome : null;
 
     // Faltou mais de uma vez dentro do período
-    const vezes = {};
+    const vezes = Object.create(null);
     const fs = Object.values(base.fechamentos).filter(f => f.data >= de && f.data <= ate);
     for (const f of fs) for (const x of f.pessoas) {
       const k = x.matricula || x.nome;
@@ -938,6 +935,7 @@ if (window.top !== window.self) {
   $('#arqBackup').addEventListener('change', async e => {
     const arq = e.target.files[0]; if (!arq) return;
     e.target.value = '';
+    if (arq.size > 20 * 1024 * 1024) { alert('Arquivo grande demais (mais de 20 MB). Use o backup gerado por este sistema.'); return; }
     let b;
     try {
       b = /\.xlsx$/i.test(arq.name)

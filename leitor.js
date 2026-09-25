@@ -72,7 +72,7 @@
   function normalizarMotivo(bruto, apelidos) {
     const d = dobrar(bruto).replace(/[.,;!]+$/g, '');
     if (!d) return { motivo: 'Outros', reconhecido: false };
-    if (apelidos && apelidos[d]) return { motivo: apelidos[d], reconhecido: true };
+    if (apelidos && Object.prototype.hasOwnProperty.call(apelidos, d) && MOTIVOS.includes(apelidos[d])) return { motivo: apelidos[d], reconhecido: true };
     for (const m of MOTIVOS) if (dobrar(m) === d) return { motivo: m, reconhecido: true };
     for (const [re, m] of REGRAS_MOTIVO) if (re.test(d)) return { motivo: m, reconhecido: true };
     return { motivo: 'Outros', reconhecido: false };
@@ -470,6 +470,66 @@
     return { versao: 1, fechamentos: {}, cadastro: {}, config: { times: [], naoContam: ['Férias'], apelidos: {}, meta: null } };
   }
 
+  // ---------- Limpeza de tudo que entra (aparelho, backup, nuvem) ----------
+  // Só passa o formato esperado: datas AAAA-MM-DD, números inteiros, textos com tamanho limitado,
+  // motivos da lista. Protege contra backup "envenenado" e contra nomes reservados (__proto__...).
+  const RESERVADAS = ['__proto__', 'constructor', 'prototype'];
+  const temChave = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const texto = (v, max) => (typeof v === 'string' || typeof v === 'number') ? String(v).slice(0, max) : '';
+  const inteiro = v => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 0 && n <= 100000 ? n : 0; };
+  const ehData = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const objeto = v => v && typeof v === 'object' && !Array.isArray(v);
+
+  function sanearPessoa(p) {
+    if (!objeto(p)) return null;
+    const motivo = MOTIVOS.includes(p.motivo) ? p.motivo : 'Outros';
+    return {
+      matricula: texto(p.matricula, 20).replace(/\D/g, ''),
+      nome: texto(p.nome, 120),
+      motivo,
+      motivoOriginal: texto(p.motivoOriginal, 200),
+    };
+  }
+
+  function sanearFechamento(f) {
+    if (!objeto(f) || !ehData(f.data)) return null;
+    const time = texto(f.time, 60).trim();
+    if (!time) return null;
+    const efetivo = inteiro(f.efetivo);
+    const presentes = Math.min(inteiro(f.presentes), efetivo);
+    return {
+      data: f.data, time, turno: f.turno ? texto(f.turno, 30) : null,
+      efetivo, presentes, ausentes: efetivo - presentes,
+      pessoas: (Array.isArray(f.pessoas) ? f.pessoas : []).slice(0, 2000).map(sanearPessoa).filter(Boolean),
+      texto: texto(f.texto, 20000),
+      confirmadoEm: texto(f.confirmadoEm, 40),
+    };
+  }
+
+  function sanearBase(b) {
+    const nova = baseVazia();
+    if (!objeto(b)) return nova;
+    for (const k of Object.keys(objeto(b.fechamentos) ? b.fechamentos : {})) {
+      const f = sanearFechamento(b.fechamentos[k]);
+      if (f) nova.fechamentos[chaveFechamento(f.data, f.time)] = f;
+    }
+    for (const k of Object.keys(objeto(b.cadastro) ? b.cadastro : {})) {
+      const c = b.cadastro[k];
+      if (!/^\d{1,20}$/.test(k) || !objeto(c)) continue;
+      nova.cadastro[k] = { nome: texto(c.nome, 120), time: texto(c.time, 60), visto: ehData(c.visto) ? c.visto : null };
+    }
+    const c = objeto(b.config) ? b.config : {};
+    if (Array.isArray(c.times)) nova.config.times = [...new Set(c.times.map(t => texto(t, 60).trim()).filter(Boolean))].slice(0, 200);
+    if (Array.isArray(c.naoContam)) nova.config.naoContam = c.naoContam.filter(m => MOTIVOS.includes(m));
+    if (objeto(c.apelidos)) for (const k of Object.keys(c.apelidos)) {
+      if (!RESERVADAS.includes(k) && k.length <= 200 && MOTIVOS.includes(c.apelidos[k])) nova.config.apelidos[k] = c.apelidos[k];
+    }
+    const meta = Number(c.meta);
+    nova.config.meta = c.meta != null && Number.isFinite(meta) && meta > 0 && meta < 1 ? meta : null;
+    if (c.area) nova.config.area = texto(c.area, 80);
+    return nova;
+  }
+
   // Números do dia (geral + por time + por motivo)
   function resumoDoDia(base, data) {
     const naoContam = (base.config && base.config.naoContam) || [];
@@ -644,7 +704,7 @@
   function alertasReincidencia(base, ate, dias, minimo) {
     dias = dias || 30; minimo = minimo || 3;
     const de = somarDias(ate, -(dias - 1));
-    const porPessoa = {};
+    const porPessoa = Object.create(null); // sem protótipo: nome "constructor" não quebra
     for (const f of Object.values(base.fechamentos || {})) {
       if (f.data < de || f.data > ate) continue;
       for (const x of f.pessoas) {
@@ -728,7 +788,7 @@
     MOTIVOS, dobrar, limparLinha, prefixoWhats, timeDoTitulo, normalizarTime, pareceNome, normalizarMotivo, acharData, acharTime, acharTurno,
     lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
     resumoDoDia, textoWhatsApp, historicoPessoa, csvAusencias, csvFechamentos, dataBR, pct, nomeBonito,
-    DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa,
+    DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa, sanearBase,
     seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, resumoPeriodo, alertasReincidencia, textoPeriodo,
   };
 
