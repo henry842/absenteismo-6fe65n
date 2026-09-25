@@ -7,3 +7,12 @@
 ~$*
 testes/saida/
 .claude/
+
+# Vídeo de apresentação: entradas (HTML das telas, amostra de voz) e arquivos gerados
+video/entrada/
+video/audio/
+video/frames_*/
+video/saida/
+video/*.mp4
+video/tempos_*.json
+!video/roteiro.json

@@ -10,21 +10,25 @@
 
 ---
 
-## Bloqueios (resolver antes de começar)
+## Situação em 25/09/2026
 
-1. **Amostra da voz — obrigatória.** Só recebi o arquivo HTML. Não recebi nenhum áudio, e eu não escuto a mensagem de voz que você gravou (chega para mim só o texto transcrito). Preciso de um arquivo de áudio seu:
-   - 1 a 3 minutos falando naturalmente em português, no mesmo tom que você quer no vídeo;
-   - ambiente silencioso, sem música, só a sua voz;
-   - `.wav`, `.mp3` ou `.m4a` (uma mensagem de voz do WhatsApp exportada serve).
-   - Não precisa gravar nada em chinês: o modelo usa o timbre do português para falar mandarim.
-2. **Acesso à rede para o modelo de voz.** Este ambiente bloqueia `huggingface.co`, de onde vêm os pesos do XTTS-v2. Libere em: menu do ambiente na barra de título da sessão → **Edit** → **Network access** → adicionar `huggingface.co` e `cdn-lfs.huggingface.co` aos domínios permitidos (ou escolher um nível de acesso mais amplo). O PyPI já funciona.
-3. **Licença (decidir):** o XTTS-v2 usa a Coqui Public Model License, que é **não comercial**. Para um vídeo interno de demonstração isso costuma bastar. Se o vídeo for usado comercialmente ou publicado pela empresa, use o **ElevenLabs** (Voice Cloning + modelo multilíngue, fala PT e ZH). Nesse caso preciso de uma chave de API da sua conta, cadastrada como segredo do ambiente, e o domínio `api.elevenlabs.io` liberado.
+- **Pronto:** roteiro nas duas línguas (`video/roteiro.json`), gravador das telas com destaques, cursor e legenda (`video/gravar.js`) e montagem com narração e `.srt` (`video/montar.py`). Os rascunhos **sem voz** já foram gerados (PT com 3 min 27 s e ZH com 3 min 12 s, com tempos estimados pelo tamanho do texto) e todos os 22 destaques foram conferidos quadro a quadro.
+- **Recebido:** amostra de voz do Henry (mensagem do WhatsApp com 14 s). Dá para clonar, porque o XTTS-v2 aceita a partir de ~6 s, mas 1 a 3 min deixam a voz bem mais parecida.
+- **Falta:** gerar a narração com a voz clonada (Tarefas 1 a 3). Isso está bloqueado pelos itens 2 e 3 abaixo. Depois de gerar a voz, basta rodar de novo `gravar.js` (que passa a usar os tempos reais dos áudios) e `montar.py`.
+
+## Bloqueios
+
+1. ~~**Amostra da voz.**~~ Recebida (14 s). Opcional: mandar 1 a 3 min de fala contínua, em lugar silencioso, para melhorar a semelhança. Não precisa gravar nada em chinês.
+2. **Acesso à rede para o modelo de voz.** Este ambiente bloqueia `huggingface.co`, de onde vêm os pesos do XTTS-v2, e também `api.elevenlabs.io`. Libere em: menu do ambiente na barra de título da sessão → **Edit** → **Network access** → adicionar `huggingface.co` e `cdn-lfs.huggingface.co` (ou `api.elevenlabs.io`) aos domínios permitidos, ou escolher um nível de acesso mais amplo. O PyPI já funciona.
+3. **Autorização para baixar e rodar o modelo de voz.** As permissões automáticas da sessão bloquearam o download de modelos de código aberto de terceiros (tentativa com Kokoro + kNN-VC pelo GitHub). O Henry precisa autorizar isso explicitamente no chat, ou adicionar uma regra de permissão nas configurações.
+4. **Licença (decidir):** o XTTS-v2 usa a Coqui Public Model License, que é **não comercial**. Para um vídeo interno de demonstração isso costuma bastar. Se o vídeo for usado comercialmente ou publicado pela empresa, use o **ElevenLabs** (Voice Cloning + modelo multilíngue, fala PT e ZH).
+5. **Caminho sem mudar nada no ambiente:** o próprio Henry clona a voz no site do ElevenLabs (Instant Voice Clone com a amostra), gera as falas do roteiro em PT e em ZH e envia os áudios aqui. Pode ser um arquivo por fala (`0.mp3`, `1a.mp3`, …) ou um arquivo por língua com uma pausa de ~1 s entre as falas, que é cortado pelos silêncios.
 
 ---
 
 ## Roteiro (fonte única para as duas línguas)
 
-Os IDs abaixo (`0`, `1a`, …) ligam cada frase ao destaque correspondente. Ritmo rápido: cada frase dura de 4 a 9 s. Total estimado: **~2 min 30 s** em PT e **~2 min 10 s** em ZH.
+Os IDs abaixo (`0`, `1a`, …) ligam cada frase ao destaque correspondente (22 frases). Ritmo rápido: cada frase dura de 4 a 12 s. Total estimado: **~3 min 20 s** em PT e **~3 min 10 s** em ZH; com a voz gerada em velocidade 1,1, fica perto de 3 min.
 
 ### Cena 0 — Abertura (tela 1, visão geral, zoom lento)
 
@@ -77,30 +81,41 @@ Os IDs abaixo (`0`, `1a`, …) ligam cada frase ao destaque correspondente. Ritm
 
 ---
 
-## Estrutura de arquivos (pasta de trabalho, fora do app)
+## Estrutura de arquivos (`video/` no repositório)
+
+Só os scripts e o roteiro vão para o Git. As entradas e tudo o que é gerado ficam fora, pelo `.gitignore`: o HTML tem 8 MB, a voz é dado pessoal e os vídeos são grandes.
 
 ```
-video-c3b/
-  entrada/C3B_Todas_as_Telas.html
-  entrada/voz_henry.wav              # amostra enviada pelo Henry
-  roteiro.json                       # tabela acima: id, tela, alvo, pt, zh
-  1_voz.py                           # clonagem → audio/<lang>/<id>.wav + duracoes.json
-  2_gravar.js                        # Playwright: destaques cronometrados → tela_<lang>.webm
-  3_montar.py                        # ffmpeg: vídeo + narração + legendas → final
-  saida/C3B_apresentacao_PT.mp4
-  saida/C3B_apresentacao_ZH.mp4
-  saida/*.srt
+video/
+  roteiro.json                       # tabela acima: id, tela, alvo (seletores), zoom, clique, pt, zh
+  gravar.js                          # node gravar.js <pt|zh> → frames_<lang>/ + tempos_<lang>.json
+  montar.py                          # python3 montar.py <pt|zh> → saida/C3B_apresentacao_<LANG>.mp4 + .srt
+  voz.py                             # (a fazer, Tarefa 3) clonagem → audio/<lang>/<id>.wav + duracoes.json
+  entrada/C3B_Todas_as_Telas.html    # não versionado (ou variável C3B_HTML)
+  entrada/voz_henry.wav              # não versionado: amostra do Henry
+  audio/<lang>/<id>.wav              # não versionado
+  audio/<lang>/duracoes.json         # {id: segundos}; se existir, gravar.js usa estes tempos
+  saida/                             # não versionado
+```
+
+**Como rodar** (a partir de `video/`):
+
+```bash
+node gravar.js pt        # grava as telas (tempos reais se audio/pt/duracoes.json existir)
+(cd frames_pt && ffmpeg -f concat -safe 0 -i lista.txt -vf "fps=30,format=yuv420p" \
+   -c:v libx264 -crf 18 -movflags +faststart ../rascunho_pt_sem_audio.mp4)
+python3 montar.py pt     # junta a narração (se houver) e gera o .srt
 ```
 
 ---
 
 ## Tarefa 1: Preparar o ambiente
 
-- [ ] `pip install imageio-ffmpeg coqui-tts` (ou `elevenlabs`, se esta for a opção escolhida)
-- [ ] Baixar os pesos do XTTS-v2 (só funciona depois de liberar o `huggingface.co`)
-- [ ] Converter a amostra: `ffmpeg -i voz_henry.* -ac 1 -ar 24000 voz_henry.wav`; cortar silêncios e ruídos; deixar de 30 a 90 s de fala limpa.
+- [x] `pip install imageio-ffmpeg pillow` (ffmpeg completo com libx264; o ffmpeg que vem com o Playwright não abre `.ogg` nem codifica H.264)
+- [x] Converter a amostra: `ffmpeg -i WhatsApp_Ptt_….ogg -ac 1 -ar 24000 voz_henry.wav` (14,4 s; volume médio de -18 dB e sem silêncios longos, então não precisa de corte)
+- [ ] `pip install coqui-tts` e baixar os pesos do XTTS-v2 (depende dos bloqueios 2 e 3), **ou** `pip install elevenlabs` com a chave de API
 
-**Verificação:** `python -c "from TTS.api import TTS; TTS('tts_models/multilingual/multi-dataset/xtts_v2')"` carrega sem erro, e `ffmpeg -version` responde.
+**Verificação:** `python -c "from TTS.api import TTS; TTS('tts_models/multilingual/multi-dataset/xtts_v2')"` carrega sem erro.
 
 ## Tarefa 2: Teste de voz (antes de gerar tudo)
 
@@ -112,44 +127,49 @@ video-c3b/
 
 ## Tarefa 3: Gerar toda a narração
 
-- [ ] `1_voz.py` lê `roteiro.json` e gera `audio/pt/<id>.wav` e `audio/zh/<id>.wav` (língua `pt` e `zh-cn` no XTTS), usando a mesma amostra de referência nas duas línguas.
+- [ ] `voz.py` lê `roteiro.json` e gera `audio/pt/<id>.wav` e `audio/zh/<id>.wav` (língua `pt` e `zh-cn` no XTTS), usando a mesma amostra de referência nas duas línguas.
 - [ ] Normalizar o volume (`loudnorm` em -16 LUFS), cortar os silêncios das pontas e adicionar 0,35 s de pausa no fim de cada frase.
-- [ ] Salvar `duracoes.json` = `{lang: {id: segundos}}`.
+- [ ] Salvar `audio/<lang>/duracoes.json` = `{id: segundos}` (já com a pausa).
+- [ ] Se os áudios vierem do ElevenLabs em um arquivo por língua: cortar pelos 21 maiores silêncios (`silencedetect`) e conferir se saíram 22 pedaços na ordem do roteiro.
 
-**Verificação:** 21 arquivos por língua; nenhum com mais de 12 s; ouvir `2c` e `3e` inteiros (as frases mais longas) para conferir cortes e alucinações do modelo.
+**Verificação:** 22 arquivos por língua; nenhum com mais de 15 s; ouvir `2c` e `3e` inteiros (as frases mais longas) para conferir cortes e alucinações do modelo.
 
 ## Tarefa 4: Gravar a tela com os destaques
 
-- [ ] `2_gravar.js`: Playwright com `recordVideo` em 1920×1080 e `deviceScaleFactor: 1`; abre `file://…/C3B_Todas_as_Telas.html#tela-N`.
-- [ ] Injetar CSS/JS de destaque:
-  - alvo encontrado pelo texto do título (`.card` que contém "Cobertura por Modelo", o bloco `.kpi` de cada indicador etc.);
-  - moldura verde `#1ccc61` de 3 px com cantos arredondados, escurecimento de 55% fora do alvo (máscara com recorte) e transição de 400 ms;
-  - zoom leve (`transform: scale(1.0 → 1.08)` centrado no alvo) só em `1b`, `2b`, `2c` e `3e`;
-  - um cursor falso que "clica" em "Ver na Matriz" (`2b`), "Gerar automaticamente" (`3a`) e "Alocar" (`3e`), sem sair da tela;
-  - rolagem suave em `#tela-5` para mostrar a coluna Problemas inteira em `3e`.
-- [ ] Tempo de cada destaque = `duracoes.json[lang][id]` (gravar uma vez por língua). Transição entre telas: *fade* de 0,5 s.
-- [ ] Na abertura e no fechamento, cartela com o logo C3B e o título "Central de Habilidades · BYD Camaçari" (em ZH: "技能管理中心 · 比亚迪卡马萨里").
+- [x] `gravar.js`: Chromium (Playwright) em 1920×1080, gravado pelo *screencast* do DevTools em JPEG 92 (fica mais nítido que o `recordVideo`, que usa VP8 com bitrate baixo); abre `file://…/C3B_Todas_as_Telas.html#tela-N`.
+- [x] Destaque: alvo achado pelo seletor + texto do título (`section.card` que contém "Cobertura por Modelo", `article.kpi` etc.); moldura verde `#1ccc61` com escurecimento de 55% fora do alvo e transição de 0,55 s.
+- [x] Zoom leve só em `2b`, `2c` (1,05) e `3e` (1,08). Em `1b` foi tirado porque a faixa de indicadores saía da tela.
+- [x] Cursor falso que "clica" em "Ver na Matriz" (`2b`), "Salvar" (`2g`), "Gerar automaticamente" (`3a`) e "Alocar" (`3e`).
+- [x] `1f` passa o destaque pelos três cards, um de cada vez.
+- [x] Legenda gravada na própria tela, que sobe para o topo quando o destaque está embaixo. Em ZH usa a fonte WenQuanYi Zen Hei, já instalada.
+- [x] Cartela com logo C3B + "Central de Habilidades · BYD Camaçari" / "技能管理中心 · 比亚迪卡马萨里" na abertura e no fechamento; *fade* verde entre as telas.
+- [x] Tempo de cada destaque = `audio/<lang>/duracoes.json`; sem esse arquivo, estimado pelo texto (PT 2,6 palavras/s, ZH 4,3 caracteres/s).
+- [x] Grava `tempos_<lang>.json` com o início real de cada fala, que o `montar.py` usa para posicionar a voz.
 
-**Verificação:** extrair 1 quadro por destaque (`ffmpeg -ss … -frames:v 1`) e conferir se a moldura está na área certa em todos os 21.
+**Verificação:** feita. Um quadro por destaque nas duas línguas, e a moldura está na área certa em todos os 22.
 
 ## Tarefa 5: Montar o vídeo final
 
-- [ ] `3_montar.py`: concatenar os áudios na ordem, com os mesmos tempos da gravação; opcional: trilha instrumental baixa (-26 dB, com *ducking* sob a voz). Só usar trilha livre de direitos, que você envie ou autorize.
-- [ ] Gerar `.srt` a partir do roteiro e dos tempos. PT com legenda em português. ZH com legenda em chinês simplificado (fonte Noto Sans CJK, instalada via pacote `fonts-noto-cjk` ou baixada do PyPI).
-- [ ] Exportar H.264 1080p, 30 fps, AAC 192 kbps: `C3B_apresentacao_PT.mp4` e `C3B_apresentacao_ZH.mp4`, com os `.srt` separados também.
+- [x] `montar.py`: posiciona cada áudio no início real da sua fala (`adelay`), mixa, normaliza em -16 LUFS e junta ao vídeo (H.264 1080p 30 fps + AAC 192 kbps).
+- [x] Gera `.srt` a partir do roteiro e dos tempos.
+- [ ] Opcional: trilha instrumental baixa (-26 dB, com *ducking* sob a voz). Só com trilha livre de direitos que o Henry envie ou autorize.
+- [ ] Rodar de novo `gravar.js` + `montar.py` depois da Tarefa 3, com os tempos reais.
 
 **Verificação:** `ffprobe` mostra 1920×1080, as durações de vídeo e áudio batem (±0,1 s) e a sincronia confere nos pontos `1b`, `2d` e `3e`.
 
 ## Tarefa 6: Entrega
 
-- [ ] Enviar os dois MP4 e os dois SRT para o Henry pelo chat.
+- [x] Rascunhos sem voz (`C3B_apresentacao_PT.mp4` / `_ZH.mp4` + `.srt`) enviados ao Henry pelo chat para aprovar o visual.
+- [ ] Enviar a versão final com voz.
 - [ ] Não publicar em nenhum lugar externo sem pedido explícito, porque o vídeo contém a voz clonada do Henry.
-- [ ] Guardar `roteiro.json` e os scripts para refazer o vídeo quando as telas mudarem.
 
 ---
 
-## O que eu preciso de você para executar
+## O que eu preciso de você para terminar
 
-1. **O arquivo de áudio com a sua voz** (1 a 3 min, ver "Bloqueios").
-2. **Liberar `huggingface.co`** na rede do ambiente, **ou** escolher o ElevenLabs e cadastrar a chave de API.
-3. (Opcional) Aprovar ou ajustar o roteiro acima, e dizer se quer música de fundo e legenda gravada no vídeo.
+1. **Escolher o caminho da voz:**
+   - **(a) XTTS-v2 aqui na sessão:** liberar `huggingface.co` e `cdn-lfs.huggingface.co` na rede do ambiente **e** autorizar no chat o download e a execução do modelo de voz. Uso não comercial.
+   - **(b) ElevenLabs aqui na sessão:** liberar `api.elevenlabs.io`, cadastrar a chave de API como segredo do ambiente e autorizar o uso.
+   - **(c) ElevenLabs por sua conta:** você gera os áudios no site com as falas do roteiro e me envia. Não precisa mudar nada no ambiente.
+2. (Opcional) Uma amostra de voz maior (1 a 3 min) para a clonagem ficar mais parecida.
+3. (Opcional) Ajustes no roteiro ou no visual dos rascunhos, e se quer música de fundo.
