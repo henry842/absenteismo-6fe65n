@@ -166,6 +166,9 @@ const TITULO = { pt: 'Central de Habilidades · BYD Camaçari', zh: '技能管�
   }
   lines.push(lines[lines.length - 2]);
   fs.writeFileSync(path.join(outDir, 'lista.txt'), lines.join('\n'));
+  // Linha do tempo exata dos quadros, usada por codificar.py para gerar vídeo a 30 fps sem desvio
+  fs.writeFileSync(path.join(outDir, 'quadros.json'), JSON.stringify({ inicio: start, fim: end,
+    quadros: use.map(f => [f.ts, `f${String(f.i).padStart(6, '0')}.jpg`]) }));
   fs.writeFileSync(path.join(__dirname, `tempos_${lang}.json`), JSON.stringify({ total: end - start, itens: tempos }, null, 1));
   console.log(lang, 'frames:', frames.length, 'total:', (end - start).toFixed(1) + 's', 'duracoes', durReal ? 'reais' : 'estimadas');
 })();

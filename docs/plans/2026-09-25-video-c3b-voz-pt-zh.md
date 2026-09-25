@@ -121,8 +121,7 @@ video/
 
 ```bash
 node gravar.js pt        # grava as telas (tempos reais se audio/pt/duracoes.json existir)
-(cd frames_pt && ffmpeg -f concat -safe 0 -i lista.txt -vf "fps=30,format=yuv420p" \
-   -c:v libx264 -crf 18 -movflags +faststart ../rascunho_pt_sem_audio.mp4)
+python3 codificar.py pt  # quadros → vídeo a 30 fps exatos (o concat do ffmpeg acumulava até 9 s de desvio)
 python3 montar.py pt     # junta a narração (se houver) e gera o .srt
 ```
 
