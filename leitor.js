@@ -700,11 +700,16 @@
   }
 
   // Uma linha por ausência, para abrir no Excel (separador ; e BOM para acentos).
+  // Célula de CSV. Texto que começa com = + - @ vira fórmula no Excel (dá para esconder link/comando
+  // num "nome" vindo do WhatsApp); o apóstrofo na frente faz o Excel mostrar como texto.
+  function celulaCsv(v) {
+    let s = String(v == null ? '' : v);
+    if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
   function csvAusencias(base) {
-    const esc = v => {
-      const s = String(v == null ? '' : v);
-      return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
+    const esc = celulaCsv;
     const L = [['Data', 'Time', 'Turno', 'Matrícula', 'Nome', 'Motivo', 'Motivo escrito pelo líder'].join(';')];
     const fs = Object.values(base.fechamentos || {}).sort((a, b) => a.data.localeCompare(b.data) || a.time.localeCompare(b.time, 'pt', { numeric: true }));
     for (const f of fs) for (const p of f.pessoas)
@@ -715,7 +720,7 @@
   function csvFechamentos(base) {
     const L = [['Data', 'Time', 'Turno', 'Efetivo', 'Presentes', 'Ausentes', 'Absenteísmo'].join(';')];
     const fs = Object.values(base.fechamentos || {}).sort((a, b) => a.data.localeCompare(b.data) || a.time.localeCompare(b.time, 'pt', { numeric: true }));
-    for (const f of fs) L.push([dataBR(f.data), f.time, f.turno || '', f.efetivo, f.presentes, f.ausentes, pct(f.ausentes, f.efetivo)].join(';'));
+    for (const f of fs) L.push([dataBR(f.data), f.time, f.turno || '', f.efetivo, f.presentes, f.ausentes, pct(f.ausentes, f.efetivo)].map(celulaCsv).join(';'));
     return '﻿' + L.join('\r\n');
   }
 

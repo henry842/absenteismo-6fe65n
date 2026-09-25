@@ -1,8 +1,8 @@
 // Deixa o app abrir sem internet. Busca a versão nova primeiro; se não tiver internet, usa a guardada.
 // Os dados (Supabase) não passam por aqui.
-const CACHE = 'absenteismo-v5';
+const CACHE = 'absenteismo-v6';
 const ARQUIVOS = [
-  './', './index.html', './leitor.js', './excel.js', './sincronia.js', './config.js',
+  './', './index.html', './leitor.js', './excel.js', './sincronia.js', './config.js', './app.js',
   './manifest.webmanifest', './icone-192.png', './icone-512.png', './apple-touch-icon.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js',
 ];

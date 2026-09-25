@@ -199,3 +199,12 @@ test('CSV de ausências abre no Excel com ; e acentos', () => {
   assert.ok(csv.startsWith('﻿Data;Time;'));
   assert.match(csv, /24\/09\/2026;C1B;;1000001;Ana Teste;Atestado médico/);
 });
+
+test('CSV não deixa "nome" virar fórmula no Excel', () => {
+  const txt = '*Absenteísmo C1B 24/09/2026*\nTotal de pessoas: 3\nTotal presente: 1\nNome: =HYPERLINK("http://mal.invalid")\nID: 1\nMotivo: +cmd|calc\nNome: @SUM(A1)\nID: 2\nMotivo: -1+1';
+  let b = L.baseVazia();
+  for (const m of L.lerMensagens(txt, { ano: 2026 })) b = L.gravar(b, m);
+  const linhas = L.csvAusencias(b).split('\r\n').slice(1);
+  for (const l of linhas) for (const cel of l.split(';')) assert.doesNotMatch(cel.replace(/^"/, ''), /^[=+\-@]/, cel);
+  assert.match(linhas[0], /"'=hyperlink/i);
+});
