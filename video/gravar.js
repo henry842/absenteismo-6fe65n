@@ -1,10 +1,11 @@
 // Grava o v铆deo das telas do C3B com destaques e legendas, via screencast do Chromium.
-// Uso: node gravar.js <pt|zh>   (usa audio/<lang>/duracoes.json se existir; sen茫o estima pelo texto)
+// Uso: node gravar.js <pt|zh> [--sem-legenda]   (usa audio/<lang>/duracoes.json se existir; sen茫o estima pelo texto)
 // O HTML das telas fica em entrada/C3B_Todas_as_Telas.html (ou na vari谩vel C3B_HTML).
 const fs = require('fs'), path = require('path');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const lang = process.argv[2] || 'pt';
+const LEGENDA = !process.argv.includes('--sem-legenda');
 const HTML = 'file://' + path.resolve(process.env.C3B_HTML || path.join(__dirname, 'entrada', 'C3B_Todas_as_Telas.html'));
 const roteiro = JSON.parse(fs.readFileSync(path.join(__dirname, 'roteiro.json'), 'utf8'));
 const durFile = path.join(__dirname, 'audio', lang, 'duracoes.json');
@@ -88,7 +89,7 @@ const TITULO = { pt: 'Central de Habilidades 路 BYD Cama莽ari', zh: '鎶�鑳界鐞
     return 'ok';
   }, { alvos, zoom });
 
-  const legenda = t => page.evaluate(t => { const c = document.getElementById('cap'); c.textContent = t; c.style.opacity = t ? 1 : 0; }, t);
+  const legenda = t => page.evaluate(t => { if (!t) t = ''; const c = document.getElementById('cap'); c.textContent = t; c.style.opacity = t ? 1 : 0; }, t);
   const cartela = on => page.evaluate(on => { document.getElementById('card').style.opacity = on ? 1 : 0;
     const hl = document.getElementById('hl'); if (hl) hl.style.opacity = 0; document.getElementById('app-root').style.transform = ''; }, on);
   const clicar = c => page.evaluate(c => {
@@ -130,7 +131,7 @@ const TITULO = { pt: 'Central de Habilidades 路 BYD Cama莽ari', zh: '鎶�鑳界鐞
         document.body.appendChild(b); let k = 0; (function t() { b.style.background = (k++ % 2) ? '#00251e' : '#00251f'; requestAnimationFrame(t); })(); }); }
     const ini = Date.now() / 1000 - t0;
     tempos.push({ id: it.id, ini, dur: d });
-    await legenda(it[lang]);
+    await legenda(LEGENDA ? it[lang] : '');
     if (it.alvo === 'intro') { await cartela(true); await page.waitForTimeout(Math.min(3500, d * 500));
       await cartela(false); await page.waitForTimeout(d * 1000 - Math.min(3500, d * 500)); }
     else if (it.alvo === 'final') { await cartela(false); await page.waitForTimeout(d * 450); await cartela(true); await page.waitForTimeout(d * 550 + 1500); }

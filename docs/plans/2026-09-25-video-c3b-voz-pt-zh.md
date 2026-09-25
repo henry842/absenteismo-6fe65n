@@ -16,6 +16,15 @@
 - **Recebido:** amostra de voz do Henry (mensagem do WhatsApp com 14 s). Dá para clonar, porque o XTTS-v2 aceita a partir de ~6 s, mas 1 a 3 min deixam a voz bem mais parecida.
 - **Falta:** gerar a narração com a voz clonada (Tarefas 1 a 3). Isso está bloqueado pelos itens 2 e 3 abaixo. Depois de gerar a voz, basta rodar de novo `gravar.js` (que passa a usar os tempos reais dos áudios) e `montar.py`.
 
+## Versão completa: todas as 20 telas
+
+A pedido do Henry, o vídeo passou a cobrir **todas as 20 telas**, com a mesma lógica: o que é a tela, para que serve e como ajuda no dia a dia. São 74 falas em `video/roteiro.json`, na ordem do menu: Início, Registrar Habilidade, Revezamento, Matriz, Treinamentos, Presença/Faltas, Estações/Operações, Modelos de Carro, Perfil do Operador, Indicadores, Relatórios, Importar/Exportar, Configurações, Alertas, Pendências, Aprovações, Processos/Falhas, Histórico e Auditoria, Permissões e Integrações.
+
+- Os vídeos saem **sem legenda gravada** (`node gravar.js <pt|zh> --sem-legenda`), porque o Henry vai legendar.
+- A narração será feita pelo Henry no HeyGen com a voz clonada, a partir de `video/roteiro_PT.md` e `video/roteiro_ZH.md` (gerados por `roteiro_texto.py`).
+- O `.srt` de cada língua traz o tempo em que cada fala aparece no vídeo, para servir de guia de sincronia.
+- As seções abaixo (roteiro detalhado das telas 1, 2 e 5) continuam valendo. As falas antigas só mudaram de ID: `1a` virou `01a`, `2a` virou `02a` e `3a` virou `05a`.
+
 ## Voz escolhida: HeyGen
 
 O Henry clonou a própria voz no HeyGen. **ID da voz:** `496f8b1fa97448c3a426d62155664398`.
