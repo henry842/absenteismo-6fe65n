@@ -213,6 +213,13 @@
         cur.texto.push(original);
         continue;
       }
+      // "Equipe: C1B" dentro dos dados da pessoa (texto para o superior): é da pessoa, não é outra mensagem
+      if (kv && /^(equipe|time|setor)$/.test(chave) && (pessoa || nomeSolto)) {
+        const p = pessoaAtual();
+        p.equipe = valor.trim();
+        cur.texto.push(original);
+        continue;
+      }
       if (kv && /^(motivo|justificativa)$/.test(chave)) {
         const p = (pessoa && !pessoa.motivoOriginal) ? pessoa : (fecharPessoa(), pessoaAtual());
         p.motivoOriginal = valor;
@@ -575,7 +582,7 @@
     if (n('Outros')) L.push(`- Outros: ${n('Outros')}`);
     L.push(`- Total presente: ${r.presentes} colaboradores`);
     if (comNomes) for (const t of r.times) for (const p of t.pessoas) {
-      L.push('', p.nome || '(sem nome)', `ID: ${p.matricula || '?'}`, `Motivo: ${p.motivo}`);
+      L.push('', p.nome || '(sem nome)', `ID: ${p.matricula || '?'}`, `Equipe: ${t.time}`, `Motivo: ${p.motivo}`);
     }
     return L.join('\n');
   }

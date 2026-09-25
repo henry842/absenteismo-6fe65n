@@ -112,11 +112,12 @@ test('texto para o superior junta todos os times no modelo da SUB MONTAGEM', () 
     '- Total presente: 82 colaboradores',
     '',
   ]);
-  assert.deepEqual(linhas.slice(14, 17), ['Walter Teste', 'ID: 1000001', 'Motivo: Atestado médico']);
+  assert.deepEqual(linhas.slice(14, 18), ['Walter Teste', 'ID: 1000001', 'Equipe: C1B', 'Motivo: Atestado médico']);
   // O próprio sistema lê esse texto de volta sem avisos
   const [volta] = L.lerMensagens(txt, { ano: 2026 });
   assert.equal(volta.time, 'SUB MONTAGEM TURNO B');
   assert.deepEqual([volta.efetivo, volta.presentes, volta.ausentes, volta.pessoas.length], [90, 82, 8, 8]);
+  assert.deepEqual([...new Set(volta.pessoas.map(p => p.equipe))], ['C1B', 'C5B', 'C7B']);
   assert.equal(L.conferir(volta).status, 'verde');
 });
 
