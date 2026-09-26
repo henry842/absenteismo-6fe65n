@@ -6,8 +6,18 @@ const fs = require('fs'), path = require('path');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const CENAS = require('./cenas.js');
+// LANG=zh grava com legendas e aberturas em mandarim (o app continua em português)
+const LANG = process.env.LANG_VIDEO || 'pt';
+const ZH = LANG === 'zh' ? require('./legendas_zh.js') : null;
+const tr = t => {
+  if (!ZH || !t) return t;
+  const n = /^(\d+) de (\d+)$/.exec(t);
+  if (n) return `第${n[1]}集 · 共${n[2]}集`;
+  if (!(t in ZH)) throw new Error('Falta tradução: ' + t);
+  return ZH[t];
+};
 const URL_APP = process.env.APP_URL || 'http://localhost:8765/';
-const SAIDA = path.join(__dirname, 'quadros');
+const SAIDA = path.join(__dirname, LANG === 'pt' ? 'quadros' : 'quadros_' + LANG);
 const AGORA = new Date('2026-09-25T08:10:00-03:00'); // sexta-feira de manhã, dia do fechamento
 
 async function prepararEstado(page, estado) {
@@ -36,6 +46,7 @@ function ajudantes(page) {
   const h = {
     page, esperar, loc,
     async titulo(num, nome, sub, ms = 2600) {
+      num = tr(num); nome = tr(nome); sub = tr(sub);
       await page.evaluate(({ num, nome, sub }) => {
         window.__demo.montar(); const t = document.getElementById('demo-tit');
         t.querySelector('small').textContent = num; t.querySelector('strong').textContent = nome; t.querySelector('span').textContent = sub || '';
@@ -46,15 +57,17 @@ function ajudantes(page) {
       await esperar(600);
     },
     async fim(texto, ms = 2200) {
+      const rotulo = tr('Absenteísmo dos times'); texto = tr(texto);
       await h.leg(''); await h.dest(null);
-      await page.evaluate(({ texto }) => {
+      await page.evaluate(({ texto, rotulo }) => {
         const t = document.getElementById('demo-tit');
-        t.querySelector('small').textContent = 'Absenteísmo dos times'; t.querySelector('strong').textContent = texto; t.querySelector('span').textContent = '';
+        t.querySelector('small').textContent = rotulo; t.querySelector('strong').textContent = texto; t.querySelector('span').textContent = '';
         t.style.opacity = 1;
-      }, { texto });
+      }, { texto, rotulo });
       await esperar(ms);
     },
     async leg(texto, opcoes = {}) {
+      texto = tr(texto);
       await page.evaluate(({ texto, topo }) => {
         window.__demo.montar(); const l = document.getElementById('demo-leg');
         l.classList.toggle('topo', !!topo); l.textContent = texto; l.style.opacity = texto ? 1 : 0;

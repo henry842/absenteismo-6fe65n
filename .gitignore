@@ -18,3 +18,5 @@ video/tempos_*.json
 !video/roteiro.json
 video/demo/quadros/
 video/demo/saida/
+video/demo/quadros_zh/
+video/demo/saida_zh/

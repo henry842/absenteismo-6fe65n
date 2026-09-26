@@ -39,7 +39,7 @@
   const CSS = `
   #demo-leg{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:2147483600;max-width:min(1100px,92vw);
     background:rgba(16,24,40,.92);color:#fff;border-left:5px solid #3b82f6;border-radius:12px;padding:12px 22px;
-    font:600 clamp(15px,1.9vw,22px)/1.4 system-ui,'Segoe UI',Arial,sans-serif;text-align:center;opacity:0;transition:opacity .3s,bottom .35s;pointer-events:none}
+    font:600 clamp(15px,1.9vw,22px)/1.4 system-ui,'Segoe UI',Arial,'WenQuanYi Zen Hei',sans-serif;text-align:center;opacity:0;transition:opacity .3s,bottom .35s;pointer-events:none}
   #demo-leg.topo{bottom:auto;top:18px}
   #toast{bottom:110px!important}
   #demo-dest{position:fixed;z-index:2147483500;border:3px solid #3b82f6;border-radius:12px;pointer-events:none;opacity:0;
@@ -52,7 +52,7 @@
     font:15px/1.5 system-ui,'Segoe UI',Arial,sans-serif;white-space:pre-wrap}
   #demo-dlg b{display:block;margin-top:14px;text-align:right;color:#1a5fd6}
   #demo-tit{position:fixed;inset:0;z-index:2147483640;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-    background:linear-gradient(135deg,#123a8a,#1a5fd6);color:#fff;font-family:system-ui,'Segoe UI',Arial,sans-serif;opacity:0;pointer-events:none;transition:opacity .5s}
+    background:linear-gradient(135deg,#123a8a,#1a5fd6);color:#fff;font-family:system-ui,'Segoe UI',Arial,'WenQuanYi Zen Hei',sans-serif;opacity:0;pointer-events:none;transition:opacity .5s}
   #demo-tit small{font-size:clamp(14px,1.6vw,20px);opacity:.85;letter-spacing:1px;text-transform:uppercase}
   #demo-tit strong{font-size:clamp(26px,4vw,52px);letter-spacing:-1px;text-align:center;padding:0 20px}
   #demo-tit span{font-size:clamp(14px,1.7vw,22px);opacity:.9;text-align:center;max-width:80vw}`;
