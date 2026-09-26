@@ -89,7 +89,7 @@ module.exports = [
   {
     id: '04-fechamento-do-dia', estado: 'dia-gravado',
     async rodar(h) {
-      await h.clicar('[data-aba="dia"]', { depois: 900 }); await h.esconderCursor();
+      await h.page.click('[data-aba="dia"]'); await h.esperar(600);
       await h.titulo('4 de 9', 'Passo 3 · Fechamento do dia', 'Números do dia, quem falta mandar e os textos prontos');
       await h.dest('.kpis'); await h.leg('Os números do dia: times recebidos, total de pessoas, presentes, ausentes e o % de absenteísmo com a meta.', { ms: 5200 });
       await h.dest('.cartao:has(.mandou)'); await h.leg('“Quem já mandou”: 5 de 6 times. O C9B aparece como pendente.', { ms: 4200 });
@@ -121,7 +121,7 @@ module.exports = [
   {
     id: '05-historico-buscar-pessoa', estado: 'dia-gravado',
     async rodar(h) {
-      await h.clicar('[data-aba="historico"]', { depois: 900 }); await h.esconderCursor();
+      await h.page.click('[data-aba="historico"]'); await h.esperar(600);
       await h.titulo('5 de 9', 'Histórico · Buscar pessoa', 'Todas as ausências de alguém em segundos');
       await h.dest(C('Buscar pessoa')); await h.leg('Digite o nome ou a matrícula.', { ms: 1600 });
       await h.digitar('#buscaPessoa', 'Rafael', 110);
@@ -137,7 +137,7 @@ module.exports = [
   {
     id: '06-historico-periodo', estado: 'dia-gravado',
     async rodar(h) {
-      await h.clicar('[data-aba="historico"]', { depois: 900 }); await h.esconderCursor();
+      await h.page.click('[data-aba="historico"]'); await h.esperar(600);
       await h.titulo('6 de 9', 'Histórico · Período e análises', 'Tendência, reincidência e resumo para o WhatsApp');
       await h.rolar(C('Período e filtros'), 'start');
       await h.dest(C('Período e filtros')); await h.leg('Escolha as datas ou use os atalhos: esta semana, semana passada, este mês, mês passado, últimos 30 dias.', { ms: 1200 });
@@ -164,14 +164,14 @@ module.exports = [
   {
     id: '07-ajustes-times-meta-modelo', estado: 'dia-gravado',
     async rodar(h) {
-      await h.clicar('[data-aba="ajustes"]', { depois: 900 }); await h.esconderCursor();
+      await h.page.click('[data-aba="ajustes"]'); await h.esperar(600);
       await h.titulo('7 de 9', 'Ajustes · Times, meta e modelo', 'Deixar o app com a cara da sua operação');
       await h.dest(C('Times esperados')); await h.leg('Times esperados: a lista dos times que mandam todo dia. É ela que mostra quem ainda não mandou.', { ms: 4600 });
       await h.clicar('#btnTimesDosLancamentos', { depois: 900 });
       await h.leg('Dá para digitar um por linha ou preencher com os times que já foram lançados.', { ms: 3600 });
       await h.rolar(C('Área e meta'), 'center'); await h.dest(C('Área e meta'));
       await h.leg('O nome da área vai no título do texto para o superior. A meta de absenteísmo pinta de vermelho quem passar dela.', { ms: 1000 });
-      await h.limparEDigitar('#cfgMeta', '2,5', 150);
+      await h.limparEDigitar('#cfgMeta', '2.5', 150);
       await h.clicar(`${C('Área e meta')} button`, { depois: 1400 });
       await h.rolar(C('Modelo de mensagem'), 'center'); await h.dest(C('Modelo de mensagem'));
       await h.leg('O modelo de mensagem para os líderes: escolha o time e copie. Quem usa o modelo, o app lê sem nenhum aviso.', { ms: 800 });
@@ -183,7 +183,7 @@ module.exports = [
   {
     id: '08-ajustes-regras-excel-backup', estado: 'dia-gravado',
     async rodar(h) {
-      await h.clicar('[data-aba="ajustes"]', { depois: 900 }); await h.esconderCursor();
+      await h.page.click('[data-aba="ajustes"]'); await h.esperar(600);
       await h.titulo('8 de 9', 'Ajustes · Regras, Excel e backup', 'O que conta no %, o que o app aprendeu e onde os dados ficam');
       await h.rolar(C('NÃO contam'), 'center'); await h.dest(C('NÃO contam'));
       await h.leg('Marque os motivos que não entram no % de absenteísmo (ex.: férias e afastamento). A pessoa continua na lista.', { ms: 5000 });
@@ -192,7 +192,8 @@ module.exports = [
       await h.rolar(C('Arquivo Excel'), 'center'); await h.dest(C('Arquivo Excel'));
       await h.leg('Arquivo Excel: escolha uma vez onde salvar. Depois, a cada gravação, a planilha é atualizada sozinha.', { ms: 800 });
       await h.clicar('#btnEscolherExcel', { depois: 1400 });
-      await h.dest('#estadoExcel'); await h.leg('Pronto: “Excel salvo”. O Excel também serve de backup.', { ms: 3800 });
+      await h.dest('#infoExcel'); await h.leg('Pronto: o Excel ficou ligado e já foi salvo. Ele também serve de backup.', { ms: 1800 });
+      await h.dest(null); await h.topo(); await h.dest('#estadoExcel'); await h.esperar(2600);
       await h.rolar(C('Guardar e levar'), 'center'); await h.dest(C('Guardar e levar'));
       await h.leg('Os dados ficam na conta e no aparelho. Aqui você baixa um backup, restaura (do backup ou do Excel) e exporta planilhas CSV.', { ms: 1200 });
       await h.clicar('#btnCsvAusencias', { depois: 1600 });

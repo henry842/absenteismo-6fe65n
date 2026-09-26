@@ -23,10 +23,9 @@ async function prepararEstado(page, estado) {
       }
     }
     localStorage.setItem('absenteismo.v1', JSON.stringify(base));
-    if (estado !== 'deslogado') {
-      localStorage.setItem('absenteismo.sinc', JSON.stringify({ usuario: 'demo-lider', email: 'lider.demo@exemplo.com', ultimaPuxada: null, espelho: {}, pendentes: {} }));
-      localStorage.setItem('demo.logado', 'sim');
-    }
+    // Mesmo usuário já usado neste aparelho: ao entrar, o app não pergunta sobre dados antigos
+    localStorage.setItem('absenteismo.sinc', JSON.stringify({ usuario: 'demo-lider', email: 'lider.demo@exemplo.com', ultimaPuxada: null, espelho: {}, pendentes: {} }));
+    if (estado !== 'deslogado') localStorage.setItem('demo.logado', 'sim');
   }, { estado });
 }
 

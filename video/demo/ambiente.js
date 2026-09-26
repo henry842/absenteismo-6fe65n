@@ -23,9 +23,14 @@
   };
   Object.defineProperty(window, 'supabase', { value: { createClient: () => cliente }, writable: false });
 
-  // Excel: seletor de arquivo simulado (grava em lugar nenhum, mas o app segue o fluxo real)
+  // Excel: seletor de arquivo simulado (grava em lugar nenhum, mas o app segue o fluxo real).
+  // O IndexedDB não guarda objetos com funções, então o arquivo simulado vira só o nome na hora de guardar.
+  const putOriginal = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function (valor, ...resto) {
+    return putOriginal.call(this, valor && valor.__demo ? 'demo:' + valor.name : valor, ...resto);
+  };
   window.showSaveFilePicker = async () => ({
-    name: 'absenteismo.xlsx', kind: 'file',
+    __demo: true, name: 'absenteismo.xlsx', kind: 'file',
     queryPermission: async () => 'granted', requestPermission: async () => 'granted',
     createWritable: async () => ({ write: async () => {}, close: async () => {} }),
   });
