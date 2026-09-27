@@ -55,7 +55,7 @@
     const nota = Math.round(componentes.reduce((t, c) => t + c.obtido, 0));
     const doSchema = issues.filter(i => i.schema === schemaId);
     const bloq = doSchema.some(i => i.severidade === 'BLOCKING');
-    const avisos = doSchema.some(i => i.severidade === 'ERROR' || i.severidade === 'WARNING');
+    const avisos = doSchema.some(i => i.severidade === 'ERROR' || i.severidade === 'WARNING') || enumOk < enumCheios || dup > 0;
     const status = bloq ? 'BLOQUEADO' : nota < 60 ? 'PARCIAL' : avisos ? 'COM_AVISOS' : 'VALIDO';
     return { nota, status, rotulo: STATUS[status], componentes, resumo: resumo(schemaId, registros, { dup, refs, refsOk, chave }) };
   }

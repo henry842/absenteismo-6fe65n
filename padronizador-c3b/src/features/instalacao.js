@@ -33,6 +33,7 @@
         { chave: 'installation_id', valor: pacote.manifesto.installation_id, descricao: 'Identificador da instalação' },
         { chave: 'schema_version', valor: D.SCHEMA_VERSION, descricao: 'Versão dos schemas' },
         { chave: 'contadores_lote', valor: JSON.stringify(c.contadores || {}), descricao: 'Sequência dos lotes de importação por dia' },
+        { chave: 'valores_extras', valor: JSON.stringify(c.valoresExtras || {}), descricao: 'Valores criados pelo administrador nas listas do Dicionário' },
         ...Object.entries(c.geral || {}).map(([chave, valor]) => ({ chave, valor, descricao: '' })),
       ],
       MODELOS: D.MODELOS.concat(c.modelosExtras || []).map(m => ({ model_id: m.model_id, nome: m.nome || m.model_id, aliases: (m.aliases || []).join('|'), ativo: 'SIM' })),
@@ -55,9 +56,10 @@
   function abasParaConfig(abas) {
     const json = v => { if (v == null || v === '') return {}; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch (e) { return {}; } };
     const geral = {};
-    let contadores = {};
+    let contadores = {}, valoresExtras = {};
     for (const l of abas.GERAL || []) {
       if (l.chave === 'contadores_lote') contadores = json(l.valor);
+      else if (l.chave === 'valores_extras') valoresExtras = json(l.valor);
       else if (!['installation_id', 'schema_version'].includes(l.chave)) geral[l.chave] = l.valor;
     }
     const base = new Set(D.MODELOS.map(m => m.model_id));
@@ -65,7 +67,7 @@
       aliases: (abas.ALIASES || []).map(a => ({ ...a, active: !['NAO', 'FALSE', 'false', '0', false].includes(a.active) })),
       perfis: (abas.IMPORT_PROFILES || []).map(p => ({ ...p, header_row: p.header_row === '' ? null : +p.header_row, column_mapping: json(p.column_mapping), normalization_rules: json(p.normalization_rules), fixed_values: json(p.fixed_values), version: +p.version || 1 })),
       modelosExtras: (abas.MODELOS || []).filter(m => !base.has(m.model_id)).map(m => ({ model_id: m.model_id, nome: m.nome, aliases: String(m.aliases || '').split('|').filter(Boolean) })),
-      valoresExtras: {},
+      valoresExtras,
       decisoes: abas.DECISOES || [],
       contadores,
       sync: Object.fromEntries((abas.SYNC_SETTINGS || []).map(s => [s.schema, s.master_mode])),
@@ -188,6 +190,16 @@
   // modo: 'COMPLETO' | 'AUSENTES' (só arquivos que não existem) | 'ATUALIZAR' (lista em "bases")
   async function gravarPacote(storage, raiz, pacote, { bases = BASES, modo = 'COMPLETO', usuario = 'padronizador', batchId = '', override = null, ExcelJS = null } = {}) {
     const resultados = [];
+    // Nunca mistura instalações: se a pasta já tem o Manifesto de OUTRA instalação, não grava nada
+    if (storage.suportaLeitura) {
+      const man = junta(raiz, D.schema('MANIFEST').arquivo);
+      if (await storage.fileExists(man)) {
+        let outro = null;
+        try { const lido = await W.lerArquivoOficial(await storage.readFile(man), { ExcelJS }); outro = lido.manifesto && lido.manifesto.installation_id; } catch (e) { outro = null; }
+        if (outro && outro !== pacote.manifesto.installation_id)
+          return { ok: false, resultados, erro: `A pasta "${raiz || '(raiz)'}" já contém outra instalação (${outro}). Nada foi gravado. Escolha outra subpasta em Configurações ou abra essa instalação.` };
+      }
+    }
     if (storage.suportaDiretorios) { await storage.createDirectory(raiz); for (const p of PASTAS) await storage.createDirectory(junta(raiz, p)); }
     let alvo = modo === 'COMPLETO' ? BASES : bases;
     if (modo === 'AUSENTES') {

@@ -211,7 +211,8 @@
       const chave = D.schema(t.schema).chave[0];
       const validos = t.resultado.oficiais.filter(o => o[chave]);
       const semChave = t.resultado.oficiais.length - validos.length;
-      const unicos = [...new Map(validos.map(o => [o[chave], o])).values()];
+      // Chave repetida no arquivo: fica a PRIMEIRA ocorrência (a repetição já é apontada como erro DUPLICADO)
+      const vistos = new Set(), unicos = validos.filter(o => !vistos.has(o[chave]) && vistos.add(o[chave]));
       const comp = CF.compararVersoes(futuras[t.schema], unicos, chave);
       futuras[t.schema] = CF.aplicarComparacao(t.schema, futuras[t.schema], comp, { ausentes: 'MANTER' });
       const eventosNovos = t.schema === 'SKILLS' ? eventosDaMatriz(pacote.bases.SKILLS, comp, sessao) : [];

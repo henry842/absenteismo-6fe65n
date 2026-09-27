@@ -138,9 +138,10 @@
       }
       return null;
     };
+    const chaveOp = () => [v.ref_modelo, v.ref_estacao, v.ref_codigo_operacao, v.ref_descricao].filter(Boolean).join(' · ');
     const opDaRef = () => {
       if (!v.ref_estacao && !v.ref_codigo_operacao && !v.ref_descricao) return { operation_id: null, status: 'VAZIO', regra: 'SEM_REFERENCIA' };
-      const dec = decisaoRef('operation_id', [v.ref_modelo, v.ref_estacao, v.ref_codigo_operacao, v.ref_descricao].filter(Boolean).join(' · '));
+      const dec = decisaoRef('operation_id', chaveOp());
       if (dec) return dec.acao === 'IGNORAR' ? { operation_id: null, status: 'VAZIO', regra: 'IGNORADO_PELO_USUARIO' } : { operation_id: dec.valor, status: 'OK', regra: dec.acao === 'CONFIRMAR' ? 'CONFIRMADO_PELO_USUARIO' : 'CORRIGIDO_PELO_USUARIO', confianca: 1, decisao: 'USUARIO' };
       return resolverOperacao(catalogo, { modelo: v.ref_modelo, estacao: v.ref_estacao, codigo: v.ref_codigo_operacao, descricao: v.ref_descricao }, motor);
     };
@@ -169,13 +170,13 @@
       meta();
     } else if (schemaId === 'SKILLS') {
       v.employee_id = pessoaDaRef();
-      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, [v.ref_modelo, v.ref_estacao, v.ref_codigo_operacao, v.ref_descricao].filter(Boolean).join(' · '));
+      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, chaveOp());
       if (!v.status && v.skill_level && v.skill_level !== UNKNOWN) { v.status = 'ATIVO'; anotar('status', { original: null, normalizado: 'ATIVO', regra: 'REGISTRO_COM_NIVEL', confianca: 1, status: 'OK' }); }
       v.skill_record_id = ID.skillRecordId(v.employee_id, v.operation_id);
       meta();
     } else if (schemaId === 'HISTORY') {
       v.employee_id = pessoaDaRef();
-      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, [v.ref_estacao, v.ref_codigo_operacao, v.ref_descricao].filter(Boolean).join(' · '));
+      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, chaveOp());
       if (!v.event_type) {
         const t = !v.previous_level && v.new_level ? 'NOVA_HABILIDADE' : v.previous_level && v.new_level && v.previous_level !== v.new_level ? 'MUDANCA_NIVEL' : v.new_titularity && v.new_titularity !== v.previous_titularity ? 'MUDANCA_TITULARIDADE' : 'AVALIACAO';
         v.event_type = t; anotar('event_type', { original: null, normalizado: t, regra: 'TIPO_DERIVADO_DOS_NIVEIS', confianca: 1, status: 'OK' });
@@ -184,7 +185,7 @@
       v.source = reg._origem; v.import_batch_id = contexto.batchId || null; v.created_at = agora;
     } else if (schemaId === 'TRAINING') {
       v.employee_id = pessoaDaRef();
-      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, [v.ref_estacao, v.ref_codigo_operacao, v.ref_descricao].filter(Boolean).join(' · '));
+      const op = opDaRef(); v.operation_id = op.operation_id; if (op.status !== 'VAZIO') anotarRef('operation_id', op, chaveOp());
       const o = catalogo.find(x => x.operation_id === v.operation_id);
       v.model_id = o ? o.model_id : null; v.station_id = o ? o.station_id : null;
       v.training_id = v.employee_id && v.operation_id ? ID.trainingId(v) : null;
