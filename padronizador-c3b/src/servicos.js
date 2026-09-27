@@ -1,0 +1,39 @@
+// API pública do Padronizador C3B. É o que o sistema principal C3B deve chamar no futuro.
+// Não depende do HTML: roda no navegador (window.C3B.servicos) e no Node (require('./src/servicos.js')).
+(typeof module === 'object' ? require('./modulo') : C3BModulo)('servicos',
+  ['core/util', 'core/dicionario', 'core/aliases', 'core/mapeamento', 'core/perfis', 'core/normalizar', 'core/validar', 'core/qualidade',
+    'core/conflitos', 'core/historico', 'excel/leitor', 'excel/escritor', 'features/instalacao', 'features/importacao', 'features/cadastro', 'features/relatorios', 'storage/adaptadores'],
+  (U, D, AL, M, PF, N, V, Q, CF, H, L, W, INST, IMP, CAD, REL, ST) => {
+  'use strict';
+  return {
+    // leitura e interpretação
+    analyzeWorkbook: (bytes, nome, opcoes) => L.analisarArquivo(bytes, nome, opcoes),
+    detectHeader: aba => M.detectarCabecalho(aba),
+    detectSchema: (aba, cabecalho, opcoes) => PF.detectarSchema(aba, cabecalho || M.detectarCabecalho(aba), opcoes),
+    mapColumns: (aba, cabecalho, schemaId, opcoes) => M.mapearColunas(M.colunasDaAba(aba, cabecalho), schemaId, opcoes),
+    normalizeDataset: parametros => N.normalizarAba(parametros),
+    validateDataset: (schemaId, registros, opcoes) => V.validarDataset(schemaId, registros, opcoes),
+    validatePackage: bases => V.validarPacote(bases),
+    calculateQualityScore: (schemaId, registros, opcoes) => Q.calcularQualidade(schemaId, registros, opcoes),
+    // geração e instalação
+    generateOfficialWorkbook: (schemaId, registros, meta, opcoes) => W.gerarBaseOficial(schemaId, registros, meta, opcoes),
+    verifyWorkbook: (bytes, schemaId, registros, opcoes) => W.verificarArquivo(bytes, schemaId, registros, opcoes),
+    readOfficialWorkbook: (bytes, opcoes) => W.lerArquivoOficial(bytes, opcoes),
+    createInstallation: (storage, raiz, meta, opcoes) => INST.criarInstalacao(storage, raiz, meta, opcoes),
+    diagnoseInstallation: (storage, raiz, opcoes) => INST.diagnosticarInstalacao(storage, raiz, opcoes),
+    loadInstallation: (storage, raiz, opcoes) => INST.carregarInstalacao(storage, raiz, opcoes),
+    writePackage: (storage, raiz, pacote, opcoes) => INST.gravarPacote(storage, raiz, pacote, opcoes),
+    listVersions: (storage, raiz, schemaId, opcoes) => INST.listarVersoes(storage, raiz, schemaId, opcoes),
+    restoreVersion: (storage, raiz, pacote, schemaId, caminho, opcoes) => INST.restaurarVersao(storage, raiz, pacote, schemaId, caminho, opcoes),
+    compareVersions: (existentes, novos, chave) => CF.compararVersoes(existentes, novos, chave),
+    compareFiles: (storage, a, b, opcoes) => INST.compararArquivos(storage, a, b, opcoes),
+    // sincronização futura
+    detectConflicts: (base, excel, sistema, chave) => CF.detectarConflitos(base, excel, sistema, chave),
+    resolveConflicts: (mesclado, conflitos, decisoes, chave, opcoes) => CF.resolverConflitos(mesclado, conflitos, decisoes, chave, opcoes),
+    registerSkill: (pacote, mudanca) => H.registrarHabilidade(pacote, mudanca),
+    // importação guiada e cadastro
+    importacao: IMP, cadastro: CAD, relatorios: REL, armazenamento: ST, dicionario: D, aliases: AL, perfis: PF,
+    createPackage: (meta, usuario) => INST.criarPacote(meta, usuario),
+    util: U,
+  };
+}, typeof module === 'object' ? module : null);

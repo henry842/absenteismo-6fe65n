@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'; form-action 'none'"/>
+<title>C3B • Padronizador Inteligente de Dados</title>
+<link rel="stylesheet" href="src/ui/base.css"/>
+<link rel="stylesheet" href="src/ui/app.css"/>
+</head>
+<body>
+<div class="shell">
+  <header class="topHero">
+    <img class="factoryGhost" src="assets/fabrica.jpg" alt=""/>
+    <div class="heroInner">
+      <img class="brandMark" src="assets/marca-c3b.png" alt="C3B Chassis System"/>
+      <div class="heroTitle">
+        <h1>Padronizador Inteligente de Dados <b>C3B</b></h1>
+        <div class="zh">数据智能标准化工具</div>
+        <div class="tagline"><span>Qualquer planilha. Um padrão.</span><span>Da diversidade de dados à inteligência operacional.</span></div>
+      </div>
+      <div class="heroSide"><div class="eyebrow">BUILD YOUR DREAMS</div><strong>PROCESSOS<br/>PESSOAS<br/>TECNOLOGIA<br/>QUALIDADE<br/>EVOLUÇÃO</strong><div class="greenBar"></div></div>
+    </div>
+  </header>
+
+  <nav class="nav"><div class="navInner">
+    <button class="navBtn active" data-view="inicio"><span class="ico">⌂</span><span>Início<small>首页</small></span></button>
+    <button class="navBtn" data-view="importacao"><span class="ico">⇧</span><span>Importação<small>导入</small></span></button>
+    <button class="navBtn" data-view="mapeamento"><span class="ico">◎</span><span>Mapeamento<small>字段映射</small></span></button>
+    <button class="navBtn" data-view="normalizacao"><span class="ico">⚙</span><span>Normalização<small>数据标准化</small></span></button>
+    <button class="navBtn" data-view="validacao"><span class="ico">✓</span><span>Validação<small>数据校验</small></span></button>
+    <button class="navBtn" data-view="geracao"><span class="ico">▦</span><span>Geração<small>生成</small></span></button>
+    <button class="navBtn" data-view="dicionario"><span class="ico">▣</span><span>Dicionário<small>数据字典</small></span></button>
+    <button class="navBtn" data-view="historico"><span class="ico">◷</span><span>Histórico<small>历史记录</small></span></button>
+    <button class="navBtn" data-view="config"><span class="ico">⚙</span><span>Configurações<small>设置</small></span></button>
+    <div class="navSpacer"></div>
+    <div class="profile" id="perfilModo" title="Clique para trocar entre modo Líder e modo Implantador/Admin"><div class="avatar" id="avatarModo">C3</div><div><b id="nomeModo">Administrador</b><small id="descModo">Implantador / Admin</small></div></div>
+  </div></nav>
+
+  <main class="main">
+    <div id="bannerGlobal"></div>
+
+    <!-- ============ INÍCIO (painel original, agora com dados reais) ============ -->
+    <section class="tela ativa" data-tela="inicio">
+    <section class="gridTop">
+      <div class="panel welcome">
+        <div>
+          <div style="color:#94a79f;font-size:12px">Bem-vindo ao</div>
+          <h2>Padronizador Inteligente <b>C3B</b></h2>
+          <div class="zhTitle">欢迎使用 C3B 数据智能标准化工具</div>
+          <p>Transforme qualquer planilha em bases oficiais do C3B com inteligência, validação e rastreabilidade. O sistema identifica estruturas, sugere mapeamentos, normaliza nomenclaturas e mantém decisão humana nas ambiguidades.</p>
+          <div class="btnRow"><button class="btn primary" id="startImport">⇧ &nbsp;Iniciar Importação<br><span style="font-size:10px;font-weight:500">开始导入</span></button><button class="btn" id="loadExample">▤ &nbsp;Carregar Exemplo<br><span style="font-size:10px;font-weight:500">加载示例</span></button><button class="btn" id="startNova">✚ &nbsp;Nova Implantação<br><span style="font-size:10px;font-weight:500">新建部署（无表格）</span></button></div>
+          <div class="featureStrip"><span><i class="dotIcon">▥</i>Mais produtividade</span><span><i class="dotIcon">⌁</i>Mais padronização</span><span><i class="dotIcon">✓</i>Mais confiabilidade</span><span><i class="dotIcon">◈</i>Pronto para o C3B</span></div>
+        </div>
+        <div class="processArt">
+          <div class="arrowLine"></div>
+          <div class="glassBox"><b>Qualquer planilha</b><small style="color:#8fa49a">任意表格</small><div class="fileStack"><div class="fileCard">XLSX</div><div class="fileCard">CSV</div><div class="fileCard">XLSM</div></div></div>
+          <div class="coreLogo"><img src="assets/marca-c3b.png" alt="C3B"/></div>
+          <div class="glassBox right"><b>Bases oficiais</b><small style="color:#8fa49a">官方数据</small><div class="fileStack"><div class="fileCard" style="width:72px">EXCEL</div></div></div>
+        </div>
+      </div>
+
+      <aside class="panel status">
+        <div class="statusTop"><div class="panelTitle">Status do Processo<small>流程状态</small></div><b id="progressPct">0%</b></div>
+        <div class="bar"><i id="progressBar"></i></div>
+        <div class="steps" id="steps">
+          <div class="step" data-ir="importacao"><i></i><div><b>Importação</b><small>导入</small></div></div>
+          <div class="step" data-ir="mapeamento"><i></i><div><b>Mapeamento de Campos</b><small>字段映射</small></div></div>
+          <div class="step" data-ir="normalizacao"><i></i><div><b>Normalização</b><small>数据标准化</small></div></div>
+          <div class="step" data-ir="validacao"><i></i><div><b>Validação</b><small>数据校验</small></div></div>
+          <div class="step" data-ir="geracao"><i></i><div><b>Geração das Bases</b><small>生成数据</small></div></div>
+        </div>
+        <small id="statusTexto" style="color:#8fa39a;display:block;margin-top:8px"></small>
+      </aside>
+
+      <aside class="panel quick">
+        <div class="panelTitle">Ações Rápidas<small>快速操作</small></div>
+        <button class="quickBtn" id="quickImport"><span class="qico">⇧</span><span><b>Nova Importação</b><small>新建导入</small></span></button>
+        <button class="quickBtn" id="quickUltimo"><span class="qico">▰</span><span><b>Abrir Último Projeto</b><small>打开最近项目</small></span></button>
+        <button class="quickBtn" data-ir="dicionario"><span class="qico">▣</span><span><b>Dicionário C3B</b><small>数据字典</small></span></button>
+        <button class="quickBtn" id="quickDiag"><span class="qico">⚕</span><span><b>Diagnóstico das Bases</b><small>基础数据诊断</small></span></button>
+      </aside>
+    </section>
+
+    <section class="metricsGrid">
+      <div class="panel recent">
+        <div class="recentHeader"><div class="panelTitle" style="margin:0">Arquivos Recentes<small>最近文件</small></div><a data-ir="historico">Ver todos</a></div>
+        <div id="recentes"></div>
+      </div>
+      <div class="panel quality">
+        <div class="panelTitle">Qualidade dos Dados<small>数据质量</small></div>
+        <div class="qualityWrap"><div class="gauge" id="gauge"><b id="qualityNum">—</b><small>QUALIDADE GERAL</small></div><div class="skillBars" id="barrasQualidade"></div></div>
+      </div>
+      <div class="panel summary">
+        <div class="panelTitle">Resumo da Última Importação<small>最近导入摘要</small></div>
+        <div id="resumoUltima"></div>
+      </div>
+      <div class="panel integration">
+        <div class="panelTitle">Destinos de Integração<small>集成目标</small></div>
+        <div id="destinos"></div>
+      </div>
+    </section>
+
+    <section class="panel flow">
+      <div class="panelTitle">Fluxo do Processo<small>处理流程</small></div>
+      <div class="flowCards">
+        <div class="flowCard" data-ir="importacao"><div class="flowNum">1</div><div class="flowIcon">⇧</div><h4>Importação <span style="color:#729087">/ 导入</span></h4><p>Selecione sua planilha ou arraste aqui.</p></div>
+        <div class="flowCard" data-ir="mapeamento"><div class="flowNum">2</div><div class="flowIcon">⌘</div><h4>Mapeamento <span style="color:#729087">/ 映射</span></h4><p>O sistema identifica e sugere os campos.</p></div>
+        <div class="flowCard" data-ir="normalizacao"><div class="flowNum">3</div><div class="flowIcon">◉</div><h4>Normalização <span style="color:#729087">/ 标准化</span></h4><p>Padroniza nomes, formatos e estruturas.</p></div>
+        <div class="flowCard" data-ir="validacao"><div class="flowNum">4</div><div class="flowIcon">⬡</div><h4>Validação <span style="color:#729087">/ 校验</span></h4><p>Verifica consistência, integridade e qualidade.</p></div>
+        <div class="flowCard" data-ir="geracao"><div class="flowNum">5</div><div class="flowIcon">▦</div><h4>Geração <span style="color:#729087">/ 生成</span></h4><p>Gera as bases oficiais padronizadas em Excel.</p></div>
+        <div class="flowCard finalCard"><div class="trophy">◈</div><b>Pronto para o C3B</b><small>Dados organizados.<br/>Operações mais fortes.<br/>数据有序，运营更强大。</small></div>
+      </div>
+    </section>
+    </section>
+
+    <!-- As demais telas são montadas por src/ui/*.js dentro destas seções -->
+    <section class="tela" data-tela="importacao" id="telaImportacao"></section>
+    <section class="tela" data-tela="mapeamento" id="telaMapeamento"></section>
+    <section class="tela" data-tela="normalizacao" id="telaNormalizacao"></section>
+    <section class="tela" data-tela="validacao" id="telaValidacao"></section>
+    <section class="tela" data-tela="geracao" id="telaGeracao"></section>
+    <section class="tela" data-tela="dicionario" id="telaDicionario"></section>
+    <section class="tela" data-tela="historico" id="telaHistorico"></section>
+    <section class="tela" data-tela="config" id="telaConfig"></section>
+    <section class="tela" data-tela="nova" id="telaNova"></section>
+  </main>
+
+  <footer class="footer"><div><strong>C3B</strong> | Chassis System • Padronizador Inteligente de Dados</div><div id="rodapeVersao">Processos • Pessoas • Resultados</div><div>Juntos somos mais fortes. 团结让我们更强大。</div></footer>
+</div>
+
+<div class="modal" id="importModal"><div class="modalBox">
+  <h3>Nova Importação <span style="color:#6d867a;font-weight:500">/ 新建导入</span></h3>
+  <label class="dropzone" id="dropzone" for="fileInput"><div><div style="font-size:48px;color:#53ff91">⇧</div><b>Arraste e solte um arquivo aqui</b><small>ou clique para selecionar • XLSX, XLSM, CSV (XLS antigo: salve como .xlsx)</small></div></label>
+  <input id="fileInput" type="file" accept=".xlsx,.xlsm,.csv,.xls" hidden/>
+  <div class="fileMeta" id="fileMeta"></div>
+  <div class="linhaForm" id="modoImportacao">
+    <label class="campo"><b>O que fazer</b><select class="select" id="modoSelect">
+      <option value="IMPORTACAO">Importar e padronizar</option>
+      <option value="ANALISE">Analisar sem alterar nada</option>
+      <option value="SIMULACAO">Simular padronização (não grava)</option>
+    </select></label>
+  </div>
+  <div class="progressoImport" id="progressoImport"><div class="bar"><i id="progressoImportBar"></i></div><small id="progressoImportTxt"></small></div>
+  <div class="modalActions"><button class="btn" id="closeModal">Cancelar</button><button class="btn primary" id="simulateBtn">Analisar arquivo</button></div>
+</div></div>
+<div class="modal" id="modalGenerico"><div class="modalBox largo" id="modalGenericoBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/exceljs.min.js"></script>
+<script src="src/modulo.js"></script>
+<script src="src/core/util.js"></script>
+<script src="src/core/dicionario.js"></script>
+<script src="src/core/aliases.js"></script>
+<script src="src/core/parsers.js"></script>
+<script src="src/core/ids.js"></script>
+<script src="src/core/mapeamento.js"></script>
+<script src="src/core/perfis.js"></script>
+<script src="src/core/normalizar.js"></script>
+<script src="src/core/validar.js"></script>
+<script src="src/core/qualidade.js"></script>
+<script src="src/core/duplicidades.js"></script>
+<script src="src/core/historico.js"></script>
+<script src="src/core/conflitos.js"></script>
+<script src="src/core/auditoria.js"></script>
+<script src="src/excel/csv.js"></script>
+<script src="src/excel/leitor.js"></script>
+<script src="src/excel/legado.js"></script>
+<script src="src/excel/escritor.js"></script>
+<script src="src/storage/adaptadores.js"></script>
+<script src="src/features/instalacao.js"></script>
+<script src="src/features/importacao.js"></script>
+<script src="src/features/cadastro.js"></script>
+<script src="src/features/relatorios.js"></script>
+<script src="src/servicos.js"></script>
+<script src="src/ui/estado.js"></script>
+<script src="src/ui/exemplo.js"></script>
+<script src="src/ui/tela-inicio.js"></script>
+<script src="src/ui/tela-importacao.js"></script>
+<script src="src/ui/tela-mapeamento.js"></script>
+<script src="src/ui/tela-normalizacao.js"></script>
+<script src="src/ui/tela-validacao.js"></script>
+<script src="src/ui/tela-geracao.js"></script>
+<script src="src/ui/tela-dicionario.js"></script>
+<script src="src/ui/tela-historico.js"></script>
+<script src="src/ui/tela-config.js"></script>
+<script src="src/ui/tela-nova.js"></script>
+<script src="src/ui/app.js"></script>
+</body>
+</html>
