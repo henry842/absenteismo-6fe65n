@@ -197,3 +197,24 @@ test('arquivo grande (5.000 linhas) é processado em lotes', async () => {
   const r = await IMP.processar(s, 'Pessoas', { progresso: p => { progresso = p; } });
   assert.equal(r.oficiais.length, 5000); assert.equal(progresso, 100);
 });
+
+test('as 7 bases são independentes: Matriz, Treinamentos e Presença importadas de CSV e ligadas ao Cadastro', async () => {
+  const pacote = S.createPackage({ empresa: 'T' }, 't');
+  const csv = (nome, txt) => ({ nome, bytes: new TextEncoder().encode(txt) });
+  await importar(pacote, csv('pessoas.csv', 'Matrícula;Nome;Equipe;Status\n004512;João Silva;C3B;Ativo\n000777;王伟;C3B;Ativo\n'));
+  await importar(pacote, csv('ops.csv', 'Modelo;Estação;Cód. Op.;Descrição\nSA6H;C16 L1;OP-101;Torque parafuso\n'));
+  await importar(pacote, csv('matriz.csv', 'Matrícula;Estação;Cód. Op.;Nível;Titularidade;Status\n004512;C16 L1;OP-101;L;Titular;Ativo\n000777;C16 L1;OP-101;i;;Ativo\n'));
+  await importar(pacote, csv('treino.csv', 'Matrícula;Estação;Cód. Op.;Nível atual;Nível alvo;Data planejada;Status;Prioridade\n000777;C16 L1;OP-101;i;I;2026-10-15;Planejado;Alta\n'));
+  await importar(pacote, csv('presenca.csv', 'Matrícula;Data;Turno;Presença;Motivo\n004512;2026-09-22;T2;P;\n000777;22/09/2026;T2;Falta;Atestado\n'));
+  assert.equal(pacote.bases.SKILLS.length, 2);
+  assert.equal(pacote.bases.SKILLS.find(s => s.employee_id === 'EMP-000777').skill_level, 'i');
+  assert.equal(pacote.bases.HISTORY.length, 2, 'matriz importada gera eventos no histórico');
+  assert.equal(pacote.bases.TRAINING[0].target_level, 'I');
+  assert.deepEqual(pacote.bases.ATTENDANCE.map(a => a.status).sort(), ['AUSENTE', 'PRESENTE']);
+  assert.match(pacote.bases.ATTENDANCE[0].attendance_id, /^ATT-20260922-EMP-/);
+  assert.deepEqual(S.validatePackage(pacote.bases), []);
+  for (const id of ['SKILLS', 'TRAINING', 'ATTENDANCE']) {
+    const bytes = await S.generateOfficialWorkbook(id, pacote.bases[id], {});
+    assert.equal((await S.verifyWorkbook(bytes, id, pacote.bases[id])).ok, true, id);
+  }
+});

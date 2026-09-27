@@ -1,6 +1,6 @@
 # Relatório de testes — Padronizador C3B
 
-Gerado por `npm run relatorio` em 2026-09-27T22:53:21.370Z (Node v22.22.2).
+Gerado por `npm run relatorio` em 2026-09-27T22:55:42.856Z (Node v22.22.2).
 Cada linha só é PASS se todos os testes que a comprovam passaram nesta execução.
 
 ```
@@ -23,6 +23,7 @@ Quality score                               PASS       (2)
 Duplicate detection                         PASS       (3)
 Integrity validation                        PASS       (2)
 Profiles                                    PASS       (1)
+Seven independent schemas                   PASS       (2)
 XLSX export                                 PASS       (2)
 Reopen generated workbook                   PASS       (3)
 Manifest                                    PASS       (1)
@@ -54,7 +55,7 @@ E2E 20 steps                                PASS       (1)
 UI end to end (browser, file://)            PASS       (1)
 ```
 
-Testes executados (inclui subtestes): 92 · PASS 92 · FAILED 0 · SKIPPED 0
+Testes executados (inclui subtestes): 93 · PASS 93 · FAILED 0 · SKIPPED 0
 
 ## Todos os testes
 
@@ -96,6 +97,7 @@ Testes executados (inclui subtestes): 92 · PASS 92 · FAILED 0 · SKIPPED 0
 - ✓ modos: ANALISE e SIMULACAO nunca alteram as bases
 - ✓ cancelamento durante a análise
 - ✓ arquivo grande (5.000 linhas) é processado em lotes
+- ✓ as 7 bases são independentes: Matriz, Treinamentos e Presença importadas de CSV e ligadas ao Cadastro
 - ✓ gera .xlsx oficial e verifica relendo (matrícula texto, datas, chinês, _META, DICIONARIO)
 - ✓ leitor independente (openpyxl) abre o arquivo gerado
 - ✓ instalação: cria os 8 arquivos e pastas, relê e verifica cada um

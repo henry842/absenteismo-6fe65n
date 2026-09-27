@@ -34,6 +34,7 @@ const MAPA = [
   ['Duplicate detection', [/^duplicidade de operações/, /^9\. detectar duplicidade/, /^10\. resolver/]],
   ['Integrity validation', [/^integridade referencial/, /^12\. validar referências/]],
   ['Profiles', [/^perfis:/]],
+  ['Seven independent schemas', [/^as 7 bases/, /^dicionário: 7 bases/]],
   ['XLSX export', [/^gera \.xlsx oficial/, /^13\. gerar XLSX/]],
   ['Reopen generated workbook', [/^14\. reabrir XLSX/, /^15\. validar conteúdo/, /^leitor independente/]],
   ['Manifest', [/^16\. gerar Manifesto/]],
