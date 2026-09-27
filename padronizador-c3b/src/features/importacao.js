@@ -29,7 +29,7 @@
         const cab = M.detectarCabecalho(aba);
         const det = aba.linhas ? PF.detectarSchema(aba, cab, { motor: sessao.motor, perfis }) : { ranking: [], perfil: null };
         const melhor = det.ranking[0];
-        const auxiliar = !aba.visivel || /^(modelo|exemplo|template|instru|legenda|lista|config|parametro|menu|capa)/i.test(U.dobrar(aba.nome)) || aba.linhas < 2;
+        const auxiliar = !aba.visivel || /^(modelo|exemplo|template|instru|legenda|listas?( de)? (valores|opcoes|suspensa)|config|parametro|menu|capa)/i.test(U.dobrar(aba.nome)) || aba.linhas < 2;
         sessao.abas.push({
           nome: aba.nome, visivel: aba.visivel, linhas: aba.linhas, colunas: aba.colunas, dimensao: aba.dimensao, formulas: aba.formulas,
           mescladas: aba.mescladas.length, tabelas: aba.tabelas, preenchidas: aba.celulasPreenchidas, vazias: aba.celulasVazias,

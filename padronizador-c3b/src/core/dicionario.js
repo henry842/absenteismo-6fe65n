@@ -136,7 +136,7 @@
     { tipo: 'RG', padroes: ['rg', 'identidade', 'documento identidade'] },
     { tipo: 'TELEFONE', padroes: ['telefone', 'celular', 'fone', 'whatsapp', 'contato telefonico', '电话', '手机'] },
     { tipo: 'ENDERECO', padroes: ['endereco', 'rua', 'bairro', 'cep', 'logradouro', '地址'] },
-    { tipo: 'NASCIMENTO', padroes: ['data nascimento', 'nascimento', 'data de nascimento', 'aniversario', 'dt nasc', '出生日期'] },
+    { tipo: 'NASCIMENTO', padroes: ['data nascimento', 'nascimento', 'data de nascimento', 'aniversario', 'dt nasc', 'data nasc', 'nasc', 'dt nascimento', '出生日期', '生日'] },
     { tipo: 'EMAIL_PESSOAL', padroes: ['email pessoal', 'e mail pessoal'] },
     { tipo: 'SALARIO', padroes: ['salario', 'remuneracao'] },
     { tipo: 'DOCUMENTOS', padroes: ['pis', 'cnh', 'ctps', 'titulo eleitor', 'nome da mae', 'nome do pai'] },
