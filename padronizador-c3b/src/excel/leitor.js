@@ -35,7 +35,10 @@
     if (ext === 'xls' || assinatura === 'ole')
       throw new ErroLeitura('Arquivo .xls (formato antigo do Excel 97-2003) não é suportado.', 'Abra no Excel e use "Salvar como" → Pasta de Trabalho do Excel (.xlsx).');
 
-    if (ext === 'csv' || ext === 'txt' || assinatura === 'texto') {
+    // O conteúdo decide, não o nome: ZIP é Excel mesmo com outra extensão; texto com nome de Excel é recusado
+    if (['xlsx', 'xlsm'].includes(ext) && assinatura === 'texto')
+      throw new ErroLeitura(`O arquivo tem extensão .${ext}, mas o conteúdo é texto (não é uma planilha Excel).`, 'Se for um CSV, renomeie para .csv; senão, abra no Excel e salve como .xlsx.');
+    if (assinatura !== 'zip' && (ext === 'csv' || ext === 'txt' || assinatura === 'texto')) {
       const { linhas, codificacao, separador } = CSV.lerCsv(u8);
       arquivo.formato = 'csv'; arquivo.codificacao = codificacao; arquivo.separador = separador;
       const aba = montarAba(nomeArquivo.replace(/\.[^.]+$/, ''), 0, true, linhas, new Map(), [], new Set(), 0, []);
@@ -52,6 +55,7 @@
     catch (e) { throw new ErroLeitura(`Não foi possível abrir o arquivo como Excel: ${e.message}`, 'Confira se o arquivo não está corrompido ou protegido por senha; abra no Excel e salve de novo.'); }
     if (token) token.verificar();
     arquivo.formato = ext === 'xlsm' ? 'xlsm' : 'xlsx';
+    if (!['xlsx', 'xlsm'].includes(ext)) arquivo.avisoExtensao = `Extensão .${ext}, mas o conteúdo é uma planilha Excel: lido como Excel.`;
     const abas = [];
     const total = wb.worksheets.length;
     for (let i = 0; i < total; i++) {

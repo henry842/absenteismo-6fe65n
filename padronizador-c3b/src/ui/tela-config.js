@@ -206,7 +206,8 @@
     const da = $('#diagAusentes'); if (da) da.onclick = async () => {
       try {
         UI.estado.pacote = UI.estado.diagnostico.pacote;
-        const r = await S.writePackage(st, UI.estado.raiz, UI.estado.pacote, { modo: 'AUSENTES', usuario: UI.usuario(), ExcelJS: window.ExcelJS });
+        const bases = UI.estado.diagnostico.ausentes.filter(b => !['MANIFEST', 'CONFIG'].includes(b));
+        const r = await S.writePackage(st, UI.estado.raiz, UI.estado.pacote, { modo: 'ATUALIZAR', bases, usuario: UI.usuario(), ExcelJS: window.ExcelJS });
         UI.estado.geracao = { ...r, em: U.agoraISO(), mensagem: r.ok ? `${r.resultados.length} base(s) ausente(s) gerada(s).` : r.erro };
         UI.toast(UI.estado.geracao.mensagem, !r.ok);
         UI.estado.diagnostico = await S.diagnoseInstallation(st, UI.estado.raiz, UI.opcoesExcel()); render();

@@ -32,7 +32,7 @@
       ids.add(o.operation_id);
       const m = String(o.operation_id).match(/^(.*)-(\d{3,})$/);
       if (m) seqs.set(m[1], Math.max(seqs.get(m[1]) || 0, +m[2]));
-      if (o.model_id && (o.station_base || o.estacao)) porChave.set(chaveNaturalOperacao({ ...o, station_base: o.station_base || o.estacao }), o.operation_id);
+      if (o.model_id && (o.station_base || o.estacao)) porChave.set(chaveNaturalOperacao({ ...o, station_base: o.station_base || o.estacao, side: o.side ?? o.lado, position: o.position ?? o.posicao }), o.operation_id);
     }
     for (const a of aliasesOperacao) if (a.active !== false) porChave.set(a.original_value, a.normalized_value);
     function obter(o) {
