@@ -62,6 +62,19 @@ const MAPA = [
   ['Mass edit with preview', [/^edição em massa/]],
   ['Audit report (.xlsx)', [/^relatório da importação/]],
   ['Large file (5,000 rows)', [/^arquivo grande/]],
+  ['BYD: ellipse → TITULAR', [/^BYD 1:/]],
+  ['BYD: triangle → EM_TREINAMENTO', [/^BYD 2:/]],
+  ['BYD: ellipse + triangle → FUTURO_TITULAR', [/^BYD 3:/]],
+  ['BYD: overlapping ellipses → one TITULAR', [/^BYD 4:/]],
+  ['BYD: marker 1 → skill_level L', [/^BYD 5:/]],
+  ['BYD: triangle without 1 → no invented L', [/^BYD 6:/]],
+  ['BYD: fill GREEN', [/^BYD 7:/]],
+  ['BYD: fill YELLOW', [/^BYD 8:/]],
+  ['BYD: shape origin recorded', [/^BYD 9:/]],
+  ['BYD: Base Operacional generated and reopened', [/^BYD 10:/, /^BYD: leitor independente/]],
+  ['BYD: unusual combinations → WARNING', [/^BYD validações/]],
+  ['BYD: panel in the browser', [/^Matriz BYD: painel/]],
+  ['BYD: REAL reference matrix', [/^Matriz BYD real:/]],
   ['E2E 20 steps', [/^E2E:/]],
   ['UI end to end (browser, file://)', [/^interface: fluxo completo/]],
 ];
@@ -83,6 +96,7 @@ const tabela = ['Funcionalidade'.padEnd(larg) + 'Resultado  (testes)', ...linhas
 const md = `# Relatório de testes — Padronizador C3B
 
 Gerado por \`npm run relatorio\` em ${new Date().toISOString()} (Node ${process.version}).
+Matriz BYD real: ${process.env.C3B_MATRIZ_REAL ? 'testada (C3B_MATRIZ_REAL definida; o arquivo não fica no repositório)' : 'NÃO testada nesta execução (defina C3B_MATRIZ_REAL)'}.
 Cada linha só é PASS se todos os testes que a comprovam passaram nesta execução.
 
 \`\`\`

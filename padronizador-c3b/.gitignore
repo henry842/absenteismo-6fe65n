@@ -1,2 +1,5 @@
 node_modules/
 tests/saida/
+
+# Matrizes reais com dados pessoais não entram no repositório (use C3B_MATRIZ_REAL nos testes)
+*COPIA-TRABALHO*

@@ -117,5 +117,18 @@ test('interface: fluxo completo no navegador', { skip: !pw && 'Playwright não i
     await pg.click('[data-wz="4"]'); await pg.click('[data-wz="5"]'); await pg.click('#wzGerar');
     await pg.waitForFunction(() => /Pacote gerado/.test(document.querySelector('#toast').textContent), null, { timeout: 60000 });
   });
+  await t.test('Matriz BYD: painel com designação pelas formas e Base Operacional', async () => {
+    await tela('inicio'); await pg.click('#startImport');
+    await pg.setInputFiles('#fileInput', FIX('Matriz_BYD_estrutura_real_sintetica.xlsx'));
+    await pg.click('#simulateBtn');
+    await pg.waitForSelector('#painelBYD', { timeout: 60000 });
+    const linha = await pg.$$eval('#painelBYD table tbody tr:first-child td', tds => tds.slice(0, 7).map(td => td.textContent.trim()));
+    assert.deepEqual(linha, ['SA6H', '6', '4', '7', '3', '2', '2'], 'aba, pessoas, operações, L, titulares, em treinamento, futuros titulares');
+    await pg.selectOption('#bydStatus', 'FUTURO_TITULAR');
+    assert.equal(await pg.$$eval('#painelBYD .dados tbody tr', e => e.length), 2);
+    await pg.click('#bydGerar');
+    await pg.waitForSelector('#bydResultado .banner.ok', { timeout: 60000 });
+    assert.match(await pg.textContent('#bydResultado'), /Relido do destino e conferido/);
+  });
   await t.test('sem erros no console', () => assert.deepEqual(erros, []));
 });

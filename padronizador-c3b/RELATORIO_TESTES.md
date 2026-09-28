@@ -1,61 +1,75 @@
 # Relatório de testes — Padronizador C3B
 
-Gerado por `npm run relatorio` em 2026-09-27T22:55:42.856Z (Node v22.22.2).
+Gerado por `npm run relatorio` em 2026-09-28T15:11:49.013Z (Node v22.22.2).
+Matriz BYD real: testada (C3B_MATRIZ_REAL definida; o arquivo não fica no repositório).
 Cada linha só é PASS se todos os testes que a comprovam passaram nesta execução.
 
 ```
-Funcionalidade                              Resultado  (testes)
-XLSX import                                 PASS       (2)
-XLSM import (sem executar macro)            PASS       (1)
-CSV import                                  PASS       (2)
-.xls antigo recusado com orientação         PASS       (1)
-Formato pelo conteúdo, não pelo nome        PASS       (1)
-Header detection                            PASS       (2)
-Header mapping                              PASS       (3)
-Correção manual de mapeamento (UI)          PASS       (1)
-Station parser                              PASS       (1)
-Model parser                                PASS       (1)
-Normalização segura (nunca inventa)         PASS       (2)
-Aliases                                     PASS       (4)
-Skill levels i/I/L/U                        PASS       (1)
-Stable IDs                                  PASS       (1)
-Quality score                               PASS       (2)
-Duplicate detection                         PASS       (3)
-Integrity validation                        PASS       (2)
-Profiles                                    PASS       (1)
-Seven independent schemas                   PASS       (2)
-XLSX export                                 PASS       (2)
-Reopen generated workbook                   PASS       (3)
-Manifest                                    PASS       (1)
-Installation from scratch                   PASS       (1)
-Installation diagnosis                      PASS       (2)
-Generate missing bases                      PASS       (1)
-Backup                                      PASS       (1)
-Rollback                                    PASS       (1)
-Conflict detection                          PASS       (1)
-Diff / soft delete                          PASS       (1)
-Matrix + History (append-only, idempotent)  PASS       (2)
-Analysis / simulation modes                 PASS       (1)
-Cancellation                                PASS       (1)
-Legacy: history one sheet per person        PASS       (1)
-Legacy: planning matrix                     PASS       (1)
-Legacy: rotation control                    PASS       (1)
-LGPD minimization                           PASS       (2)
-Path traversal blocked                      PASS       (3)
-Local bridge                                PASS       (1)
-Configuration persistence                   PASS       (2)
-Chinese text preservation                   PASS       (3)
-Accents (Windows-1252)                      PASS       (1)
-Leading-zero matricula                      PASS       (2)
-Manual creation                             PASS       (2)
-Mass edit with preview                      PASS       (1)
-Audit report (.xlsx)                        PASS       (1)
-Large file (5,000 rows)                     PASS       (1)
-E2E 20 steps                                PASS       (1)
-UI end to end (browser, file://)            PASS       (1)
+Funcionalidade                                Resultado  (testes)
+XLSX import                                   PASS       (2)
+XLSM import (sem executar macro)              PASS       (1)
+CSV import                                    PASS       (2)
+.xls antigo recusado com orientação           PASS       (1)
+Formato pelo conteúdo, não pelo nome          PASS       (1)
+Header detection                              PASS       (2)
+Header mapping                                PASS       (3)
+Correção manual de mapeamento (UI)            PASS       (1)
+Station parser                                PASS       (1)
+Model parser                                  PASS       (1)
+Normalização segura (nunca inventa)           PASS       (2)
+Aliases                                       PASS       (4)
+Skill levels i/I/L/U                          PASS       (1)
+Stable IDs                                    PASS       (1)
+Quality score                                 PASS       (2)
+Duplicate detection                           PASS       (3)
+Integrity validation                          PASS       (2)
+Profiles                                      PASS       (1)
+Seven independent schemas                     PASS       (2)
+XLSX export                                   PASS       (2)
+Reopen generated workbook                     PASS       (3)
+Manifest                                      PASS       (1)
+Installation from scratch                     PASS       (1)
+Installation diagnosis                        PASS       (2)
+Generate missing bases                        PASS       (1)
+Backup                                        PASS       (1)
+Rollback                                      PASS       (1)
+Conflict detection                            PASS       (1)
+Diff / soft delete                            PASS       (1)
+Matrix + History (append-only, idempotent)    PASS       (2)
+Analysis / simulation modes                   PASS       (1)
+Cancellation                                  PASS       (1)
+Legacy: history one sheet per person          PASS       (1)
+Legacy: planning matrix                       PASS       (1)
+Legacy: rotation control                      PASS       (1)
+LGPD minimization                             PASS       (2)
+Path traversal blocked                        PASS       (3)
+Local bridge                                  PASS       (1)
+Configuration persistence                     PASS       (2)
+Chinese text preservation                     PASS       (3)
+Accents (Windows-1252)                        PASS       (1)
+Leading-zero matricula                        PASS       (2)
+Manual creation                               PASS       (2)
+Mass edit with preview                        PASS       (1)
+Audit report (.xlsx)                          PASS       (1)
+Large file (5,000 rows)                       PASS       (1)
+BYD: ellipse → TITULAR                        PASS       (1)
+BYD: triangle → EM_TREINAMENTO                PASS       (1)
+BYD: ellipse + triangle → FUTURO_TITULAR      PASS       (1)
+BYD: overlapping ellipses → one TITULAR       PASS       (1)
+BYD: marker 1 → skill_level L                 PASS       (1)
+BYD: triangle without 1 → no invented L       PASS       (1)
+BYD: fill GREEN                               PASS       (1)
+BYD: fill YELLOW                              PASS       (1)
+BYD: shape origin recorded                    PASS       (1)
+BYD: Base Operacional generated and reopened  PASS       (2)
+BYD: unusual combinations → WARNING           PASS       (1)
+BYD: panel in the browser                     PASS       (1)
+BYD: REAL reference matrix                    PASS       (1)
+E2E 20 steps                                  PASS       (1)
+UI end to end (browser, file://)              PASS       (1)
 ```
 
-Testes executados (inclui subtestes): 93 · PASS 93 · FAILED 0 · SKIPPED 0
+Testes executados (inclui subtestes): 120 · PASS 120 · FAILED 0 · SKIPPED 0
 
 ## Todos os testes
 
@@ -150,5 +164,32 @@ Testes executados (inclui subtestes): 93 · PASS 93 · FAILED 0 · SKIPPED 0
 - ✓ dicionário: alias criado na normalização aparece
 - ✓ modo Líder esconde controles administrativos
 - ✓ Nova Implantação sem planilha até gerar
+- ✓ Matriz BYD: painel com designação pelas formas e Base Operacional
 - ✓ sem erros no console
 - ✓ interface: fluxo completo no navegador
+- ✓ BYD 1: ellipse somente → TITULAR
+- ✓ BYD 2: triangle somente → EM_TREINAMENTO
+- ✓ BYD 3: ellipse + triangle no mesmo bloco → FUTURO_TITULAR
+- ✓ BYD 4: duas ellipses sobrepostas → um único TITULAR
+- ✓ BYD 5: marcador 1 → skill_level L (independente da designação)
+- ✓ BYD 6: triângulo sem marcador 1 → treinamento sem inventar L
+- ✓ BYD 7: leitura GREEN (FF92D050)
+- ✓ BYD 8: leitura YELLOW (FFFFFF00) — L amarelo continua L, sem "VERDE" automático
+- ✓ BYD 9: origem do Shape registrada (arquivo, nome, âncora 0-based)
+- ✓ BYD 10: Base Operacional gerada, reaberta e conferida
+- ✓ BYD validações: combinações incomuns viram WARNING e nada é corrigido
+- ✓ BYD layout: blocos, marcador L pela fórmula, papéis, estação e datas
+- ✓ BYD: com o Cadastro, a pessoa ganha o employee_id da matrícula
+- ✓ BYD: a importação detecta a Matriz e não a trata como planilha comum
+- ✓ BYD: leitor independente (openpyxl) abre a Base Operacional
+- ✓ abas de modelo reconhecidas; exemplo ignorado
+- ✓ drawings lidos: drawing1..4 ligados às abas certas
+- ✓ ellipse + triangle → FUTURO_TITULAR (SA6H C9, exemplo da especificação)
+- ✓ duas ellipses sobrepostas em AO46 → um único TITULAR
+- ✓ contagens por aba (formas deduplicadas)
+- ✓ nível L = marcadores 1; confere com a fórmula da própria planilha (exceto 1 resultado salvo desatualizado)
+- ✓ skill_level e assignment_status independentes
+- ✓ cores reais: GREEN e YELLOW nos blocos com L
+- ✓ legenda (○ △ abaixo da grade) ignorada e registrada
+- ✓ Base Operacional gerada, reaberta e conferida; arquivo original intacto
+- ✓ Matriz BYD real: designação pelas formas, nível pelo marcador, cor real e Base Operacional

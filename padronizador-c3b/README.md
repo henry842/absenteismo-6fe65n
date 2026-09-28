@@ -41,6 +41,7 @@ Opcional, servir por HTTP: `npx http-server -p 8080` e abrir `http://127.0.0.1:8
 | Pacote | Versão | Licença | Uso |
 |---|---|---|---|
 | [ExcelJS](https://github.com/exceljs/exceljs) | 4.4.0 | MIT | ler e gravar .xlsx/.xlsm (navegador: `vendor/exceljs.min.js`; Node: `node_modules`) |
+| [JSZip](https://stuk.github.io/jszip/) | 3.10.2 | MIT (ou GPLv3) | abrir o .xlsx como ZIP para ler as formas ○ △ (`xl/drawings/*.xml`) da Matriz BYD (navegador: `vendor/jszip.min.js`) |
 
 Só para desenvolvimento/testes (não são necessários para usar a ferramenta):
 
@@ -51,7 +52,7 @@ Só para desenvolvimento/testes (não são necessários para usar a ferramenta):
 SheetJS (xlsx) **não** é usado: a versão do npm (0.18.5) tem vulnerabilidades conhecidas e a versão corrigida só é
 distribuída pelo CDN deles. Consequência: `.xls` (Excel 97-2003) não é lido — veja Limitações.
 
-`npm run vendor` recopia `node_modules/exceljs/dist/exceljs.min.js` para `vendor/`.
+`npm run vendor` recopia ExcelJS e JSZip de `node_modules` para `vendor/`.
 
 ## Como rodar os testes
 
@@ -60,6 +61,7 @@ cd padronizador-c3b
 npm install
 npm test             # todos (≈ 20 s), inclusive o navegador se o Playwright estiver instalado
 npm run relatorio    # roda tudo e gera RELATORIO_TESTES.md (tabela Funcionalidade → PASS/FAILED)
+C3B_MATRIZ_REAL=/caminho/Matriz.xlsx npm test   # inclui o teste com a Matriz BYD real
 npm run fixtures     # recria as planilhas de teste em tests/fixtures/
 ```
 
@@ -82,7 +84,8 @@ src/core/               regras puras, sem DOM
   historico.js            Matriz + Histórico (append-only, idempotente)
   conflitos.js            conflitos em 3 vias, comparação de versões, soft delete
   auditoria.js            lote de importação e seus estados
-src/excel/              leitura (leitor.js, csv.js), formatos legados (legado.js), geração e verificação (escritor.js)
+src/excel/              leitura (leitor.js, csv.js), formatos legados (legado.js), geração e verificação (escritor.js),
+                        Matriz BYD: formas (byd_drawings.js), perfil BYD_SKILL_MATRIX_V1 (byd_matriz.js), Base Operacional (byd_base.js)
 src/storage/            StorageAdapter: Memory, NodeFs, BrowserDownload, FileSystemAccess, LocalBridge
 src/features/           instalação (pipeline de gravação, backup, versões, diagnóstico), importação, cadastro, relatórios
 src/servicos.js         API pública (window.C3B.servicos no navegador, require() no Node)
@@ -103,6 +106,45 @@ Configurações e Manifesto por último, com os hashes).
 `writePackage`, `listVersions`, `restoreVersion`, `compareVersions`, `compareFiles`, `detectConflicts`,
 `resolveConflicts`, `registerSkill`, além de `importacao`, `cadastro`, `relatorios`, `armazenamento`, `dicionario`,
 `aliases`, `perfis`. Nenhuma regra depende do HTML.
+
+## Matriz de Habilidades BYD (perfil `BYD_SKILL_MATRIX_V1`)
+
+Planilha "Planejamento de Treinamento de Habilidades" da BYD (uma aba por modelo: EQE, HA2H, SA6H, SC3H…). É detectada
+automaticamente na importação e aparece no painel **Matriz BYD** da tela Importação.
+
+| Dimensão | Fonte no Excel | Valores |
+|---|---|---|
+| `skill_level` | marcador numérico oculto **1** (fonte branca) na célula início+2/início+2 do bloco; posição confirmada pela fórmula da linha "Número L proficiente" (`=SUM(E11+E15+…)`) | `L` · `NAO_IDENTIFICADO` (os níveis oficiais i/I/L/U não mudam) |
+| `assignment_status` | **formas** do Excel em `xl/drawings/drawingN.xml` (não são valores de célula): `prst="ellipse"` = ○, `prst="triangle"` = △, ligadas ao bloco pela âncora (centro entre `from` e `to`, 0-based) | ○ só → `TITULAR` · △ só → `EM_TREINAMENTO` · ○+△ → `FUTURO_TITULAR` · nenhuma → `SEM_DESIGNACAO` |
+| `is_current_operator` / `is_training_planned` / `is_future_holder` | ○ / △ / ○+△ | booleanos |
+| `fill_state` / `fill_rgb` | cor real da célula do marcador (inclusive cor de tema + tint) | `GREEN` (FF92D050) · `YELLOW` (FFFFFF00) · `OTHER` · `NONE` — sem significado de negócio atribuído |
+| `dates_raw` / `first_date` / `latest_date` | coluna Dia/Mês do bloco (texto como "12/08/2026\n14/08/2026") | datas **não** definem designação |
+
+- As duas dimensões são independentes: L não implica titular e titular não implica L.
+- Formas sobrepostas do mesmo tipo no mesmo bloco (duas elipses em AO46) contam **uma vez**; as duas ficam na origem, uma marcada `DUPLICATA_SOBREPOSTA`.
+- Formas abaixo da grade (a legenda ○ △ da própria planilha) são ignoradas e registradas como `LEGEND_SHAPE_IGNORED`; a aba "Exemplo 范例" é ignorada.
+- Pendências, sem correção automática: ○ sem L, △ com L, ○+△+L, valor sem regra dentro do bloco (ex.: "c"), forma fora da grade, data inválida, total de L diferente do resultado salvo da fórmula (resultado desatualizado), matrícula ausente.
+- A Matriz não tem matrícula: sem Cadastro (01) com o mesmo nome, o `employee_id` é provisório (`EMP-SEMMATR-<hash do nome>`, status `SEM_MATRICULA`).
+
+**Base Operacional BYD** (botão no painel; `src/excel/byd_base.js`), reaberta e conferida depois de gerada:
+`RESUMO`, `OPERADORES`, `OPERACOES`, `HABILIDADES_ATUAIS` (blocos com nível, forma, data ou cor: skill_level, assignment_status,
+has_circle, has_triangle, is_current_operator, is_training_planned, is_future_holder, fill_state, fill_rgb, datas,
+source_block, source_l_cell, source_circle_anchor, source_triangle_anchor…), `MATRIZ_LONGA` (todas as combinações pessoa × operação),
+`ORIGEM_MAPEAMENTO` (cada célula e cada forma usada: purpose `CURRENT_OPERATOR_MARKER` / `TRAINING_MARKER` / `L_MARKER` / `FILL` /
+`DATE_CELL`…, sheet, drawing_file, shape_name, anchor_from_row/col, anchor_to_row/col), `PENDENCIAS`, `REGRAS`, `_META`.
+
+Resultado no arquivo de referência (teste `08-matriz-byd-real`):
+
+| Aba | Pessoas | Operações | Nível L | ○ Titulares | △ Em treinamento | ○△ Futuros titulares | Verde | Amarelo |
+|---|---|---|---|---|---|---|---|---|
+| EQE | 41 | 21 | 202 | 22 | 6 | 0 | 121 | 18 |
+| HA2H | 41 | 33 | 212 | 31 | 0 | 3 | 93 | 19 |
+| SA6H | 41 | 37 | 205 | 32 | 1 | 7 | 74 | 20 |
+| SC3H | 38 | 32 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+O total de L lido confere com a fórmula da própria planilha em HA2H, SA6H e SC3H. Em EQE, uma pessoa tem 6 marcadores
+e a fórmula referencia exatamente essas 6 células, mas o resultado salvo no arquivo é 4 (planilha salva sem recalcular);
+isso aparece como pendência `TOTAL_L_DIFERENTE`.
 
 ## Schemas (Pacote Oficial de Bases C3B, schema 1.0.0)
 
@@ -182,13 +224,16 @@ installation_id, content_hash, import_batch_id, sync_origin, restored_from) e ab
 | Conflitos em 3 vias | A "versão base" é o retrato da última gravação guardado **neste navegador** (IndexedDB). Em outro computador sem esse retrato, só dá para comparar arquivo × Padronizador. |
 | Sincronização com o C3B principal | **NOT IMPLEMENTED** (fora do escopo desta entrega): existem os contratos — API em `servicos.js`, `master_mode` por base, `LocalBridgeAdapter`, `_META` com `data_version`/`sync_origin` —, mas não há servidor de sincronização. |
 | Usuários / permissões | Líder × Implantador é um modo de tela, não controle de acesso. O nome do usuário nos logs é o informado em Configurações. |
+| Matriz BYD → bases oficiais 01/03 | **PARTIAL** — a Matriz gera a Base Operacional BYD, mas não alimenta sozinha o Cadastro (01) e a Matriz (03) do pacote: ela não tem matrícula (IDs provisórios) e os modelos EQE/HA2H/SC3H vêm do nome da aba. |
+| Matriz BYD: outras formas | Só `ellipse` (e `flowChartConnector`) e `triangle` são marcadores. Formas em grupo usam a âncora do grupo; `absoluteAnchor` não tem célula e é ignorada. Os valores "c" e "ASS" encontrados em blocos não têm regra definida: ficam preservados como pendência. |
+| Matriz BYD: arquivo real nos testes | O arquivo real tem nomes de pessoas e não fica no repositório; o teste `08` roda com `C3B_MATRIZ_REAL=<caminho>`. Sem a variável ele aparece como SKIPPED, nunca como PASS. |
 | Duplicidade por similaridade | Só para operações. Pessoas são deduplicadas pela matrícula (repetição = erro; fica a primeira). |
 | Tradução | Rótulos principais em pt e 中文; textos longos de ajuda e mensagens de validação só em português. |
 | Arquivo protegido por senha | Não é aberto (mensagem de erro com orientação). |
 
 ## Testes executados
 
-`npm test` — 93 testes (com subtestes), todos PASS na última execução; detalhes e tabela Funcionalidade →
+`npm test` — 120 testes (com subtestes, inclusive o arquivo real da Matriz BYD via `C3B_MATRIZ_REAL`), todos PASS na última execução; detalhes e tabela Funcionalidade →
 Resultado em [`RELATORIO_TESTES.md`](RELATORIO_TESTES.md) (gerado por `npm run relatorio`, a partir do resultado
 real de cada teste).
 
@@ -199,7 +244,9 @@ real de cada teste).
 | `03-escrita-instalacao.test.js` | geração e verificação, reabertura por openpyxl, instalação do zero, backup, versões, rollback, diagnóstico, gerar ausentes, proteção contra outra instalação, histórico só de acréscimo, bloqueio com motivo, storage confinado, persistência das configurações, perfis, edição em massa, carga inicial da matriz, relatório .xlsx |
 | `04-bridge.test.js` | token, origem, path traversal, contrato do StorageAdapter, instalação completa pelo Bridge |
 | `05-e2e.test.js` | cenário obrigatório de 20 passos (seção 79), em disco real |
-| `06-interface.test.js` | a página aberta via `file://` no Chromium: arquivo real selecionado, abas, cabeçalho, correção de mapeamento, perfil, de/para, validação, confirmação, geração com checklist, backup, diagnóstico, restauração, alias no Dicionário, modo Líder, Nova Implantação; sem erros no console |
+| `06-interface.test.js` | a página aberta via `file://` no Chromium: arquivo real selecionado, abas, cabeçalho, correção de mapeamento, perfil, de/para, validação, confirmação, geração com checklist, backup, diagnóstico, restauração, alias no Dicionário, modo Líder, Nova Implantação, painel da Matriz BYD e Base Operacional; sem erros no console |
+| `07-matriz-byd.test.js` | fixture com a mesma estrutura da Matriz real (`tests/fixtures/gerar-matriz-byd.js`, formas gravadas no drawing): os 10 casos obrigatórios (○ → TITULAR, △ → EM_TREINAMENTO, ○+△ → FUTURO_TITULAR, ○○ sobrepostas → um titular, 1 → L, △ sem 1 → sem L, GREEN, YELLOW, origem da forma, Base Operacional reaberta) + validações, layout, Cadastro, importação e openpyxl |
+| `08-matriz-byd-real.test.js` | o arquivo de referência real (com `C3B_MATRIZ_REAL`): SA6H C9 = FUTURO_TITULAR (△ E9:E10 + ○ E11), AO46 duplicada = um titular, contagens por aba, L × fórmula da planilha, cores, legenda ignorada, Base Operacional e arquivo original intacto |
 
 ## Critérios de aceite (seção 80)
 
