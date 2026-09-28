@@ -24,9 +24,10 @@
         <div class="panel bloco"><h3>Abas<small>工作表</small></h3><b style="font-size:26px">${num(s.abas.filter(x => !x.virtual).length)}</b><div style="font-size:12px;color:#b6c6bf">${num(selecionadas.length)} marcada(s) para importar</div></div>
         <div class="panel bloco"><h3>Lote<small>批次</small></h3><div class="mono">${esc(s.lote.import_batch_id)}</div><div style="margin-top:6px">${UI.tag(s.lote.estado, s.lote.estado === 'FAILED' ? 'erro' : 'info')}</div></div>
         <div class="panel bloco"><h3>Próximo passo<small>下一步</small></h3>
-          <button class="btn primary" id="irMapear" ${selecionadas.length ? '' : 'disabled'}>◎ Mapear ${selecionadas.length} aba(s)</button>
+          <button class="btn primary" id="irMapear" ${selecionadas.length ? '' : 'disabled'}>◎ Mapear ${selecionadas.length} aba(s)</button>${s.byd && !selecionadas.length ? '<div style="font-size:11px;color:#7dffc0;margin-top:6px">Matriz BYD: veja o painel abaixo.</div>' : ''}
           <button class="btn sm fantasma" id="cancelarSessao" style="margin-top:8px">Cancelar esta importação</button></div>
       </div>
+      ${UI.painelBYD ? UI.painelBYD.html(s) : ''}
       <div class="panel bloco"><h3>Abas encontradas<small>检测到的工作表</small></h3><div class="abasLista">${s.abas.map((x, i) => itemAba(x, i)).join('')}</div></div>`;
     ligar();
   }
@@ -68,6 +69,7 @@
     const s = UI.estado.sessao;
     const b = $('#novaImp'); if (b) b.onclick = () => UI.telas.inicio.abrirModal();
     if (!s) return;
+    if (UI.painelBYD) UI.painelBYD.ligar(s);
     $$('.selAba').forEach(c => c.onchange = () => { const x = s.abas[+c.dataset.i]; x.selecionada = c.checked; if (c.checked && !x.schema) x.schema = x.schemaSugerido; render(); });
     $$('.selSchema').forEach(c => c.onchange = () => { const x = s.abas[+c.dataset.i]; x.schema = c.value || null; x.selecionada = !!c.value; delete s.trabalhos[x.nome]; render(); });
     $$('.linhaCab').forEach(c => c.onchange = () => {

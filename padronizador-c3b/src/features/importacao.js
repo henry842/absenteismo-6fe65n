@@ -3,8 +3,8 @@
 // Modos: 'ANALISE' (só diagnostica, nunca grava), 'SIMULACAO' (mostra o que mudaria, não grava), 'IMPORTACAO'.
 (typeof module === 'object' ? require('../modulo') : C3BModulo)('features/importacao',
   ['core/util', 'core/dicionario', 'core/aliases', 'core/ids', 'core/mapeamento', 'core/perfis', 'core/normalizar', 'core/validar',
-    'core/qualidade', 'core/duplicidades', 'core/conflitos', 'core/historico', 'core/auditoria', 'excel/leitor', 'excel/legado'],
-  (U, D, AL, ID, M, PF, N, V, Q, DU, CF, H, AU, L, LG) => {
+    'core/qualidade', 'core/duplicidades', 'core/conflitos', 'core/historico', 'core/auditoria', 'excel/leitor', 'excel/legado', 'excel/byd_matriz'],
+  (U, D, AL, ID, M, PF, N, V, Q, DU, CF, H, AU, L, LG, BYD) => {
   'use strict';
 
   const ORDEM = ['PEOPLE', 'OPERATIONS', 'SKILLS', 'HISTORY', 'TRAINING', 'ATTENDANCE'];
@@ -14,7 +14,7 @@
   }
 
   // 1. Ler e analisar o arquivo
-  async function iniciar({ bytes, nome, modificado = null, pacote, modo = 'IMPORTACAO', usuario = 'usuario', token = U.tokenCancelamento(), progresso = () => {}, ExcelJS = null }) {
+  async function iniciar({ bytes, nome, modificado = null, pacote, modo = 'IMPORTACAO', usuario = 'usuario', token = U.tokenCancelamento(), progresso = () => {}, ExcelJS = null, JSZip = null }) {
     const lote = AU.novoLote({ contadores: pacote.config.contadores, arquivo: null, executadoPor: usuario, modo });
     const t0 = Date.now();
     AU.transicao(lote, 'ANALYZING', nome);
@@ -26,6 +26,15 @@
       const perfis = pacote.config.perfis || [];
       for (const aba of analise.abas) {
         token.verificar();
+        // Matriz de habilidades BYD: layout próprio (blocos pessoa × operação + formas ○ △), lida pelo perfil BYD
+        const byd = BYD.ehMatrizBYD(aba);
+        if (byd) {
+          sessao.abas.push({ nome: aba.nome, visivel: aba.visivel, linhas: aba.linhas, colunas: aba.colunas, dimensao: aba.dimensao, formulas: aba.formulas, mescladas: aba.mescladas.length,
+            tabelas: aba.tabelas, cabecalho: { linha: byd.linhaNomes - 1, linhas: [byd.linhaNomes - 1], cabecalhos: [], inicioDados: byd.linhaRotulos, confianca: 1 }, deteccao: { ranking: [], perfil: null },
+            schemaSugerido: null, schema: null, selecionada: false, auxiliar: true, byd,
+            motivoIgnorada: `Matriz de habilidades BYD (${byd.perfil}): lida no painel "Matriz BYD" (nível, ○ titular, △ treinamento, cor).`, amostra: aba.valores.slice(0, 8), tipos: [] });
+          continue;
+        }
         const cab = M.detectarCabecalho(aba);
         const det = aba.linhas ? PF.detectarSchema(aba, cab, { motor: sessao.motor, perfis }) : { ranking: [], perfil: null };
         const melhor = det.ranking[0];
@@ -40,6 +49,13 @@
         });
       }
       detectarLegados(sessao);
+      if (sessao.abas.some(a => a.byd)) {
+        progresso(96, 'Lendo formas ○ △ da Matriz BYD');
+        const t1 = Date.now();
+        sessao.byd = await BYD.extrairMatrizBYD(bytes, { ExcelJS, JSZip, pessoas: pacote.bases.PEOPLE, aliasesUsuario: pacote.config.aliases, modelosExtras: pacote.config.modelosExtras, arquivo: nome });
+        sessao.byd.hash_origem = analise.arquivo.hash;
+        lote.tempos.byd_ms = Date.now() - t1;
+      }
       lote.tempos.analise_ms = Date.now() - t0;
       AU.transicao(lote, 'MAPPED', 'abas analisadas');
       return sessao;
@@ -68,7 +84,7 @@
       for (const nome of a.consumidas) { const i = sessao.abas.find(x => x.nome === nome && !x.virtual); if (i) Object.assign(i, { selecionada: false, consumidaPor: a.aba.nome }); }
       for (const ig of a.ignoradas) { const i = sessao.abas.find(x => x.nome === ig.nome); if (i) Object.assign(i, { selecionada: false, auxiliar: true, motivoIgnorada: ig.motivo }); }
     }
-    for (const i of sessao.abas) if (!i.virtual && !i.consumidaPor) {
+    for (const i of sessao.abas) if (!i.virtual && !i.consumidaPor && !i.byd) {
       const motivo = LG.classificarAuxiliar({ nome: i.nome });
       if (motivo) Object.assign(i, { selecionada: false, auxiliar: true, motivoIgnorada: motivo });
     }
