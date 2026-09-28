@@ -132,7 +132,8 @@
       if (v.ref_nome) {
         const dec = decisaoRef('employee_id', v.ref_nome);
         if (dec) { anotar('employee_id', { original: v.ref_nome, normalizado: dec.acao === 'IGNORAR' ? null : dec.valor, regra: dec.acao === 'CONFIRMAR' ? 'CONFIRMADO_PELO_USUARIO' : 'CORRIGIDO_PELO_USUARIO', confianca: 1, status: 'OK', decisao: dec.acao === 'CONFIRMAR' ? 'CONFIRMED_BY_USER' : 'USUARIO' }); return dec.acao === 'IGNORAR' ? null : dec.valor; }
-        const achados = pessoas.filter(x => U.dobrar(x.nome) === U.dobrar(v.ref_nome));
+        const nomeRef = (motor && motor.nomeCanonico && motor.nomeCanonico(v.ref_nome)) || v.ref_nome;   // alias PESSOA confirmado
+        const achados = pessoas.filter(x => U.dobrar(x.nome) === U.dobrar(nomeRef));
         if (achados.length === 1) { anotar('employee_id', { original: v.ref_nome, normalizado: achados[0].employee_id, regra: 'REF_NOME_UNICO', confianca: 0.9, status: 'REVISAR' }); return achados[0].employee_id; }
         anotar('employee_id', { original: v.ref_nome, normalizado: null, regra: achados.length ? 'REF_NOME_AMBIGUO' : 'REF_NOME_NAO_ENCONTRADO', confianca: 0, status: 'NAO_RESOLVIDO_PESSOA' });
       }

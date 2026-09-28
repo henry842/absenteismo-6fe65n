@@ -30,7 +30,8 @@ const BLOCOS = [
   [3, 2, {}],                                                                // ○ sem L → WARNING
   [1, 2, { L: true, fill: 'FF92D050' }],                                     // △ com L → WARNING
   [2, 2, { L: true, fill: 'FF92D050' }],                                     // ○ + △ + L → WARNING (preservado)
-  [4, 3, { L: true, fill: 'FF00B0F0', extra: 'c' }],                        // outra cor → OTHER; "c" sem regra
+  [4, 3, { L: true, fill: 'FF00B0F0', extra: 'c' }],                        // outra cor (só metadado); "c" = resíduo conhecido do perfil
+  [4, 0, { extra: 'XYZ' }],                                                  // valor sem regra → pendência (não é resíduo conhecido)
   [5, 3, { L: true, fill: 'FF92D050' }],                                     // nome em chinês
 ];
 // Formas (0-based, como no XML). col/row = célula; "ate" = to (quando diferente)
@@ -54,7 +55,9 @@ const FORMAS = [
 
 async function gerar() {
   const wb = new ExcelJS.Workbook();
-  for (const nomeAba of ['SA6H', 'Exemplo 范例']) {
+  // HA2H: mesma equipe, com a grafia de um sobrenome trocada (como acontece no arquivo real)
+  const GRAFIA_HA2H = { 4: 'PEDRO EXEMPLO ALVSE' };
+  for (const nomeAba of ['SA6H', 'HA2H', 'Exemplo 范例']) {
     const ws = wb.addWorksheet(nomeAba);
     ws.getCell('A2').value = 'Divisão 11 \n第十一事业部 ';
     ws.getCell('C2').value = 'Planejamento de Treinamento de Habilidades da Montagem Final Seção Chassis (EXEMPLO)';
@@ -64,7 +67,7 @@ async function gerar() {
     ws.getCell('B5').value = 'Nome do operador\n 作业员姓名';
     ws.getCell('A7').value = 'Nome de Posto\n岗位名称 '; ws.mergeCells('A7:B8');
     PESSOAS.forEach((p, i) => {
-      ws.getCell(5, col(i)).value = p; ws.getCell(5, col(i)).font = { color: { argb: 'FFFF0000' } };
+      ws.getCell(5, col(i)).value = (nomeAba === 'HA2H' && GRAFIA_HA2H[i]) || p; ws.getCell(5, col(i)).font = { color: { argb: 'FFFF0000' } };
       ws.getCell(7, col(i)).value = 'Dia日\nMês月  '; ws.getCell(7, col(i) + 1).value = 'Nível de habilidade \n技水能准';
     });
     OPS.forEach((t, j) => {
@@ -85,7 +88,7 @@ async function gerar() {
     PESSOAS.forEach((_, i) => {
       const refs = OPS.map((__, j) => `${letra(col(i) + 2)}${linha(j) + 2}`);
       let total = BLOCOS.filter(([pi, , b]) => pi === i && b.L).length;
-      if (i === 3) total = 3;   // resultado salvo desatualizado (como no arquivo real): deve gerar aviso, sem mudar a leitura
+      if (i === 3 && nomeAba === 'SA6H') total = 3;   // resultado salvo desatualizado (como no arquivo real): deve gerar aviso, sem mudar a leitura
       ws.getCell(RESUMO, col(i)).value = { formula: `SUM(${refs.join('+')})`, result: total };
     });
     ws.getCell(RESUMO + 1, 1).value = 'Nota备　注';
@@ -136,4 +139,4 @@ function drawingXml() {
 function letra(c) { let s = ''; for (; c > 0; c = Math.floor((c - 1) / 26)) s = String.fromCharCode(65 + (c - 1) % 26) + s; return s; }
 
 if (require.main === module) gerar().catch(e => { console.error(e); process.exit(1); });
-module.exports = { gerar, SAIDA, PESSOAS, OPS };
+module.exports = { gerar, SAIDA, PESSOAS, OPS, GRAFIA_VARIANTE: 'PEDRO EXEMPLO ALVSE' };

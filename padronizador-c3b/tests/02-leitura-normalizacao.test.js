@@ -218,3 +218,33 @@ test('as 7 bases são independentes: Matriz, Treinamentos e Presença importadas
     assert.equal((await S.verifyWorkbook(bytes, id, pacote.bases[id])).ok, true, id);
   }
 });
+
+test('pessoas parecidas (universal): sugere, nunca une sozinho; "mesma pessoa" grava alias usado depois', async () => {
+  const pacote = S.createPackage({ empresa: 'T' }, 't');
+  const csv = (nome, txt) => ({ nome, bytes: new TextEncoder().encode(txt) });
+  // 1ª carga: Pedro Alves já no Cadastro
+  await importar(pacote, csv('p1.csv', 'Matrícula;Nome;Equipe;Status\n004602;Pedro Alves Souza;C3B;Ativo\n'));
+  // 2ª planilha traz a mesma pessoa com o nome digitado errado e outra matrícula
+  const { sessao: s } = await importar(pacote, csv('p2.csv', 'Matrícula;Nome;Equipe;Status\n014602;Pedro Alvse Souza;C3B;Ativo\n000001;Ana Lima Santos;C3B;Ativo\n'), { confirmar: false });
+  const t = Object.values(s.trabalhos)[0];
+  assert.equal(t.resultado.pessoasParecidas.length, 1, 'par sugerido');
+  assert.equal(t.resultado.oficiais.length, 2, 'nada foi unido automaticamente');
+  assert.throws(() => IMP.decidirPessoa(s, t.aba, 0, 'MESMA', { canonico: 'Pedro Alvse Souza' }), /já está no Cadastro oficial/, 'não apaga registro oficial');
+  IMP.decidirPessoa(s, t.aba, 0, 'MESMA', { canonico: 'Pedro Alves Souza' });
+  assert.deepEqual(t.resultado.oficiais.map(p => p.nome), ['Ana Lima Santos'], 'a grafia repetida sai desta importação');
+  assert.ok(pacote.config.aliases.some(a => a.entity_type === 'PESSOA' && a.original_value === 'Pedro Alvse Souza' && a.normalized_value === 'Pedro Alves Souza'));
+  IMP.confirmar(s, {});
+  assert.equal(pacote.bases.PEOPLE.length, 2);
+  // o alias resolve referências por nome nas próximas importações (ex.: histórico sem matrícula)
+  await importar(pacote, csv('ops.csv', 'Modelo;Estação;Cód. Op.;Descrição\nSA6H;C16 L1;OP-101;Torque parafuso\n'));
+  const { sessao: h } = await importar(pacote, csv('hist.csv', 'Nome;Data;Estação;Cód. Op.;Nível\nPedro Alvse Souza;2026-09-01;C16 L1;OP-101;I\n'), { confirmar: false });
+  const ev = Object.values(h.trabalhos)[0].resultado.oficiais[0];
+  assert.equal(ev.employee_id, 'EMP-004602');
+  // "pessoas diferentes" não volta a perguntar
+  const { sessao: s3 } = await importar(pacote, csv('p3.csv', 'Matrícula;Nome;Equipe;Status\n000002;Ana Lina Santos;C3B;Ativo\n'), { confirmar: false });
+  const t3 = Object.values(s3.trabalhos)[0];
+  assert.equal(t3.resultado.pessoasParecidas.length, 1);
+  IMP.decidirPessoa(s3, t3.aba, 0, 'DIFERENTES');
+  const { sessao: s4 } = await importar(pacote, csv('p3.csv', 'Matrícula;Nome;Equipe;Status\n000002;Ana Lina Santos;C3B;Ativo\n'), { confirmar: false });
+  assert.equal(Object.values(s4.trabalhos)[0].resultado.pessoasParecidas.length, 0);
+});

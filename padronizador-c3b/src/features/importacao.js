@@ -3,8 +3,8 @@
 // Modos: 'ANALISE' (só diagnostica, nunca grava), 'SIMULACAO' (mostra o que mudaria, não grava), 'IMPORTACAO'.
 (typeof module === 'object' ? require('../modulo') : C3BModulo)('features/importacao',
   ['core/util', 'core/dicionario', 'core/aliases', 'core/ids', 'core/mapeamento', 'core/perfis', 'core/normalizar', 'core/validar',
-    'core/qualidade', 'core/duplicidades', 'core/conflitos', 'core/historico', 'core/auditoria', 'excel/leitor', 'excel/legado', 'excel/byd_matriz'],
-  (U, D, AL, ID, M, PF, N, V, Q, DU, CF, H, AU, L, LG, BYD) => {
+    'core/qualidade', 'core/duplicidades', 'core/conflitos', 'core/historico', 'core/auditoria', 'excel/leitor', 'excel/legado', 'excel/byd_matriz', 'core/pessoas'],
+  (U, D, AL, ID, M, PF, N, V, Q, DU, CF, H, AU, L, LG, BYD, PS) => {
   'use strict';
 
   const ORDEM = ['PEOPLE', 'OPERATIONS', 'SKILLS', 'HISTORY', 'TRAINING', 'ATTENDANCE'];
@@ -52,8 +52,8 @@
       if (sessao.abas.some(a => a.byd)) {
         progresso(96, 'Lendo formas ○ △ da Matriz BYD');
         const t1 = Date.now();
-        sessao.byd = await BYD.extrairMatrizBYD(bytes, { ExcelJS, JSZip, pessoas: pacote.bases.PEOPLE, aliasesUsuario: pacote.config.aliases, modelosExtras: pacote.config.modelosExtras, arquivo: nome });
-        sessao.byd.hash_origem = analise.arquivo.hash;
+        sessao.bydFonte = { bytes, nome, hash: analise.arquivo.hash, ExcelJS, JSZip };
+        await extrairBYD(sessao);
         lote.tempos.byd_ms = Date.now() - t1;
       }
       lote.tempos.analise_ms = Date.now() - t0;
@@ -66,6 +66,52 @@
       return sessao;
     }
   }
+  // Matriz BYD: (re)extrai com os aliases e decisões atuais do pacote — depois de cada decisão, tudo é recalculado
+  async function extrairBYD(sessao) {
+    const f = sessao.bydFonte, pacote = sessao.pacote;
+    sessao.byd = await BYD.extrairMatrizBYD(f.bytes, { ExcelJS: f.ExcelJS, JSZip: f.JSZip, pessoas: pacote.bases.PEOPLE, aliasesUsuario: pacote.config.aliases,
+      modelosExtras: pacote.config.modelosExtras, decisoes: pacote.config.decisoes, arquivo: f.nome });
+    sessao.byd.hash_origem = f.hash;
+    return sessao.byd;
+  }
+  // "Possível mesma pessoa" na Matriz BYD: MESMA grava alias PESSOA (vale para as próximas importações); DIFERENTES grava a decisão
+  async function decidirPessoaBYD(sessao, indicePar, escolha, { canonico = null } = {}) {
+    const par = sessao.byd.pessoasParecidas[indicePar];
+    if (!par) throw new Error('Par de pessoas não encontrado (a lista pode ter mudado). Atualize a tela.');
+    registrarDecisaoPessoa(sessao, par, escolha, canonico);
+    return extrairBYD(sessao);
+  }
+  function registrarDecisaoPessoa(sessao, par, escolha, canonico) {
+    const r = PS.decidirPessoas(par, escolha, { canonico, usuario: sessao.usuario });
+    sessao.pacote.config.decisoes.push(r.decisao);
+    if (r.alias) {
+      const a = sessao.motor.adicionar('PESSOA', r.alias.original_value, r.alias.normalized_value, sessao.usuario);
+      const i = sessao.pacote.config.aliases.findIndex(x => x.alias_id === a.alias_id);
+      if (i >= 0) sessao.pacote.config.aliases[i] = a; else sessao.pacote.config.aliases.push(a);
+    }
+    return r;
+  }
+  // Cadastro (e qualquer base de pessoas): pares de nomes muito parecidos entre a importação e o que já existe
+  function pessoasParecidasDoCadastro(sessao, oficiais) {
+    const itens = oficiais.filter(p => p.nome && p.employee_id).map(p => ({ nome: p.nome, employee_id: p.employee_id, matricula: p.matricula, origem: 'IMPORTACAO' }))
+      .concat(sessao.pacote.bases.PEOPLE.filter(p => p.nome).map(p => ({ nome: p.nome, employee_id: p.employee_id, matricula: p.matricula, origem: 'PACOTE' })));
+    return PS.encontrarPessoasParecidas(itens, { decisoes: sessao.pacote.config.decisoes }).filter(p => p.a.employee_id !== p.b.employee_id && (p.a.origem === 'IMPORTACAO' || p.b.origem === 'IMPORTACAO'));
+  }
+  // MESMA: a variante sai desta importação (a pessoa canônica fica) e o alias é gravado. Não mexe em registros já oficiais.
+  function decidirPessoa(sessao, nomeAba, indicePar, escolha, { canonico = null } = {}) {
+    const t = sessao.trabalhos[nomeAba];
+    const par = t.resultado.pessoasParecidas[indicePar];
+    if (!par) throw new Error('Par de pessoas não encontrado.');
+    const fica = canonico || par.a.nome;
+    const sai = U.dobrar(fica) === U.dobrar(par.a.nome) ? par.b : par.a;
+    if (escolha === 'MESMA' && sai.origem === 'PACOTE')
+      throw new Error(`"${sai.nome}" já está no Cadastro oficial (${sai.employee_id}). Escolha-o como nome que fica, ou desative o registro antigo pela edição em massa.`);
+    const r = registrarDecisaoPessoa(sessao, par, escolha, fica);
+    if (escolha === 'MESMA') { t.resultado.oficiais = t.resultado.oficiais.filter(p => p.employee_id !== sai.employee_id); t.resultado.removidasPorUnificacao = (t.resultado.removidasPorUnificacao || []).concat([sai]); }
+    t.resultado.pessoasParecidas = pessoasParecidasDoCadastro(sessao, t.resultado.oficiais);
+    return r;
+  }
+
   // Formatos legados: gera abas virtuais em formato de tabela e tira as abas de origem da seleção
   function detectarLegados(sessao) {
     const analise = sessao.analise;
@@ -181,7 +227,8 @@
     const oficiais = r.registros.map(x => N.registroOficial(t.schema, x));
     let duplicidades = [];
     if (t.schema === 'OPERATIONS') duplicidades = DU.encontrarDuplicidades(oficiais, { existentes: pacote.bases.OPERATIONS, decisoes: pacote.config.decisoes });
-    t.resultado = { ...r, issues, oficiais, duplicidades, registroOps, tempo_ms: Date.now() - t0,
+    const pessoasParecidas = t.schema === 'PEOPLE' ? pessoasParecidasDoCadastro(sessao, oficiais) : [];
+    t.resultado = { ...r, issues, oficiais, duplicidades, pessoasParecidas, registroOps, tempo_ms: Date.now() - t0,
       qualidade: Q.calcularQualidade(t.schema, oficiais, { issues, bases: { ...pacote.bases, ...basesDaSessao(sessao) } }) };
     if (sessao.lote.estado === 'MAPPED' || sessao.lote.estado === 'VALIDATED' || sessao.lote.estado === 'READY') AU.transicao(sessao.lote, 'VALIDATED', nomeAba);
     return t.resultado;
@@ -306,5 +353,5 @@
     return r;
   }
 
-  return { iniciar, definirCabecalho, mapear, corrigirMapeamento, definirValorFixo, decidirValor, processar, decidirDuplicidade, previa, confirmar, cancelar, encerrarSemGravar, motorDoPacote, ORDEM };
+  return { iniciar, definirCabecalho, mapear, corrigirMapeamento, definirValorFixo, decidirValor, processar, decidirDuplicidade, decidirPessoa, decidirPessoaBYD, extrairBYD, previa, confirmar, cancelar, encerrarSemGravar, motorDoPacote, ORDEM };
 }, typeof module === 'object' ? module : null);

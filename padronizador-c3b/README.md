@@ -107,40 +107,62 @@ Configurações e Manifesto por último, com os hashes).
 `resolveConflicts`, `registerSkill`, além de `importacao`, `cadastro`, `relatorios`, `armazenamento`, `dicionario`,
 `aliases`, `perfis`. Nenhuma regra depende do HTML.
 
-## Matriz de Habilidades BYD (perfil `BYD_SKILL_MATRIX_V1`)
+## Matriz de Habilidades BYD (perfil `BYD_SKILL_MATRIX_V1`) — entrada oficial do Padronizador
 
 Planilha "Planejamento de Treinamento de Habilidades" da BYD (uma aba por modelo: EQE, HA2H, SA6H, SC3H…). É detectada
 automaticamente na importação e aparece no painel **Matriz BYD** da tela Importação.
 
 | Dimensão | Fonte no Excel | Valores |
 |---|---|---|
-| `skill_level` | marcador numérico oculto **1** (fonte branca) na célula início+2/início+2 do bloco; posição confirmada pela fórmula da linha "Número L proficiente" (`=SUM(E11+E15+…)`) | `L` · `NAO_IDENTIFICADO` (os níveis oficiais i/I/L/U não mudam) |
-| `assignment_status` | **formas** do Excel em `xl/drawings/drawingN.xml` (não são valores de célula): `prst="ellipse"` = ○, `prst="triangle"` = △, ligadas ao bloco pela âncora (centro entre `from` e `to`, 0-based) | ○ só → `TITULAR` · △ só → `EM_TREINAMENTO` · ○+△ → `FUTURO_TITULAR` · nenhuma → `SEM_DESIGNACAO` |
+| `skill_level` | **só** o marcador válido da Matriz: número oculto **1** (fonte branca) na célula início+2/início+2 do bloco; posição confirmada pela fórmula "Número L proficiente" (`=SUM(E11+E15+…)`) | `L` · `NAO_IDENTIFICADO` (os níveis oficiais i/I/L/U não mudam) |
+| `assignment_status` | **formas** do Excel em `xl/drawings/drawingN.xml` (não são valores de célula): `prst="ellipse"` = ○, `prst="triangle"` = △, ligadas ao bloco pela âncora (centro entre `from` e `to`, 0-based) | ○ → `TITULAR` · △ → `EM_TREINAMENTO` · ○+△ → `FUTURO_TITULAR` · nada → `SEM_DESIGNACAO` |
 | `is_current_operator` / `is_training_planned` / `is_future_holder` | ○ / △ / ○+△ | booleanos |
-| `fill_state` / `fill_rgb` | cor real da célula do marcador (inclusive cor de tema + tint) | `GREEN` (FF92D050) · `YELLOW` (FFFFFF00) · `OTHER` · `NONE` — sem significado de negócio atribuído |
 | `dates_raw` / `first_date` / `latest_date` | coluna Dia/Mês do bloco (texto como "12/08/2026\n14/08/2026") | datas **não** definem designação |
+| `fill_state` / `fill_rgb` (colunas técnicas **ocultas**) | cor da célula do marcador | só metadado: **L verde, L amarelo ou de outra cor é simplesmente L**; a cor não entra em nível, KPI, cobertura, risco ou decisão |
 
-- As duas dimensões são independentes: L não implica titular e titular não implica L.
+- Nível e designação são independentes: uma pessoa pode ser `L + TITULAR`, `L + EM_TREINAMENTO`, `NAO_IDENTIFICADO + FUTURO_TITULAR` etc.
 - Formas sobrepostas do mesmo tipo no mesmo bloco (duas elipses em AO46) contam **uma vez**; as duas ficam na origem, uma marcada `DUPLICATA_SOBREPOSTA`.
-- Formas abaixo da grade (a legenda ○ △ da própria planilha) são ignoradas e registradas como `LEGEND_SHAPE_IGNORED`; a aba "Exemplo 范例" é ignorada.
-- Pendências, sem correção automática: ○ sem L, △ com L, ○+△+L, valor sem regra dentro do bloco (ex.: "c"), forma fora da grade, data inválida, total de L diferente do resultado salvo da fórmula (resultado desatualizado), matrícula ausente.
-- A Matriz não tem matrícula: sem Cadastro (01) com o mesmo nome, o `employee_id` é provisório (`EMP-SEMMATR-<hash do nome>`, status `SEM_MATRICULA`).
+- Formas abaixo da grade (a legenda ○ △ da própria planilha) são ignoradas e registradas (`LEGEND_SHAPE_IGNORED`); a aba "Exemplo 范例" é ignorada.
+- **Resíduo conhecido deste perfil:** `c` nas células de habilidade (automação antiga) vai para o log técnico (`KNOWN_RESIDUE_IGNORED`), sem pendência e sem alterar nível. Não é regra global: fora do perfil, "c" continua desconhecido; a lista é configurável (`residuosConhecidos`). Outros valores sem regra (ex.: "ASS") continuam como pendência.
+- **Pessoas:** a Matriz não tem matrícula. Sem Cadastro (01) com o mesmo nome, o `employee_id` é provisório (`EMP-SEMMATR-<hash do nome>`).
+  Grafias muito parecidas (≥ 88%) aparecem como **"Possível mesma pessoa → mesma pessoa / pessoas diferentes"**; nada é unido
+  só pela similaridade. "Mesma pessoa" grava um alias `PESSOA` (variante → nome canônico) na configuração (07_Configuracoes › ALIASES),
+  que vale nas próximas importações, e recalcula tudo: PESSOAS, HABILIDADES_ATUAIS, MATRIZ_LONGA, TREINAMENTOS e ORIGEM passam a usar
+  um único `employee_id`. "Pessoas diferentes" também fica registrado e não é perguntado de novo. A mesma deduplicação assistida vale
+  para qualquer importação de pessoas (tela Normalização) e o alias resolve referências por nome (ex.: histórico sem matrícula).
+- **Pendências por categoria:** *Configuração pendente* (matrícula, função, turno, modelo a cadastrar) · *Problema de dados*
+  (possível mesma pessoa, operação inválida/repetida, referência quebrada, valor sem regra, forma fora da grade, total de L divergente,
+  ○ sem L / △ com L / ○+△+L) · *Aviso* (informação opcional ausente) · *Informação técnica* (formas duplicadas, aba de exemplo…).
+  Nada é corrigido automaticamente.
+- **Validação final** (aba VALIDACAO e painel): modelos, operações, pessoas únicas, nenhum resíduo como habilidade, nenhum nível derivado
+  de cor (L somente com marcador 1), ○/△ preservados, todas as habilidades com origem rastreável, nenhuma "possível mesma pessoa" pendente.
 
 **Base Operacional BYD** (botão no painel; `src/excel/byd_base.js`), reaberta e conferida depois de gerada:
-`RESUMO`, `OPERADORES`, `OPERACOES`, `HABILIDADES_ATUAIS` (blocos com nível, forma, data ou cor: skill_level, assignment_status,
-has_circle, has_triangle, is_current_operator, is_training_planned, is_future_holder, fill_state, fill_rgb, datas,
-source_block, source_l_cell, source_circle_anchor, source_triangle_anchor…), `MATRIZ_LONGA` (todas as combinações pessoa × operação),
-`ORIGEM_MAPEAMENTO` (cada célula e cada forma usada: purpose `CURRENT_OPERATOR_MARKER` / `TRAINING_MARKER` / `L_MARKER` / `FILL` /
-`DATE_CELL`…, sheet, drawing_file, shape_name, anchor_from_row/col, anchor_to_row/col), `PENDENCIAS`, `REGRAS`, `_META`.
+`RESUMO`, `PESSOAS` (com as grafias encontradas e a configuração pendente), `OPERACOES`, `HABILIDADES_ATUAIS` (blocos com nível, forma ou data),
+`MATRIZ_LONGA` (todas as combinações pessoa × operação), `TREINAMENTOS` (△ e ○+△), `ORIGEM_MAPEAMENTO` (cada célula e forma usada:
+`CURRENT_OPERATOR_MARKER` / `TRAINING_MARKER` / `L_MARKER` / `DATE_CELL` / `FILL_METADATA` / `KNOWN_RESIDUE_IGNORED`…, com drawing_file,
+shape_name e âncoras from/to), `PENDENCIAS` (com categoria), `VALIDACAO`, `REGRAS`, `_META`.
 
-Resultado no arquivo de referência (teste `08-matriz-byd-real`):
+Resultado no arquivo de referência (teste `08-matriz-byd-real`), depois de confirmar que as duas grafias
+de um mesmo colaborador (sobrenome digitado de dois jeitos em abas diferentes) são a mesma pessoa (antes da confirmação: 42 pessoas e
+1 "possível mesma pessoa"):
 
-| Aba | Pessoas | Operações | Nível L | ○ Titulares | △ Em treinamento | ○△ Futuros titulares | Verde | Amarelo |
-|---|---|---|---|---|---|---|---|---|
-| EQE | 41 | 21 | 202 | 22 | 6 | 0 | 121 | 18 |
-| HA2H | 41 | 33 | 212 | 31 | 0 | 3 | 93 | 19 |
-| SA6H | 41 | 37 | 205 | 32 | 1 | 7 | 74 | 20 |
-| SC3H | 38 | 32 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Validação final | Resultado |
+|---|---|
+| Modelos | 4 |
+| Operações | 123 |
+| Pessoas únicas | 41 |
+| "c" como habilidade ou pendência | 0 (73 no log técnico) |
+| Nível derivado de cor | 0 (há L com fundo amarelo e sem fundo; todo L tem marcador 1) |
+| ○ / △ preservados | 95 ○ · 17 △ (formas da grade = designações) |
+| Habilidades sem origem rastreável | 0 |
+
+| Aba | Pessoas | Operações | Nível L | ○ Titulares | △ Em treinamento | ○△ Futuros titulares |
+|---|---|---|---|---|---|---|
+| EQE | 41 | 21 | 202 | 22 | 6 | 0 |
+| HA2H | 41 | 33 | 212 | 31 | 0 | 3 |
+| SA6H | 41 | 37 | 205 | 32 | 1 | 7 |
+| SC3H | 38 | 32 | 0 | 0 | 0 | 0 |
 
 O total de L lido confere com a fórmula da própria planilha em HA2H, SA6H e SC3H. Em EQE, uma pessoa tem 6 marcadores
 e a fórmula referencia exatamente essas 6 células, mas o resultado salvo no arquivo é 4 (planilha salva sem recalcular);
@@ -225,7 +247,7 @@ installation_id, content_hash, import_batch_id, sync_origin, restored_from) e ab
 | Sincronização com o C3B principal | **NOT IMPLEMENTED** (fora do escopo desta entrega): existem os contratos — API em `servicos.js`, `master_mode` por base, `LocalBridgeAdapter`, `_META` com `data_version`/`sync_origin` —, mas não há servidor de sincronização. |
 | Usuários / permissões | Líder × Implantador é um modo de tela, não controle de acesso. O nome do usuário nos logs é o informado em Configurações. |
 | Matriz BYD → bases oficiais 01/03 | **PARTIAL** — a Matriz gera a Base Operacional BYD, mas não alimenta sozinha o Cadastro (01) e a Matriz (03) do pacote: ela não tem matrícula (IDs provisórios) e os modelos EQE/HA2H/SC3H vêm do nome da aba. |
-| Matriz BYD: outras formas | Só `ellipse` (e `flowChartConnector`) e `triangle` são marcadores. Formas em grupo usam a âncora do grupo; `absoluteAnchor` não tem célula e é ignorada. Os valores "c" e "ASS" encontrados em blocos não têm regra definida: ficam preservados como pendência. |
+| Matriz BYD: outras formas | Só `ellipse` (e `flowChartConnector`) e `triangle` são marcadores. Formas em grupo usam a âncora do grupo; `absoluteAnchor` não tem célula e é ignorada. "ASS" (sem regra definida) fica como pendência. |
 | Matriz BYD: arquivo real nos testes | O arquivo real tem nomes de pessoas e não fica no repositório; o teste `08` roda com `C3B_MATRIZ_REAL=<caminho>`. Sem a variável ele aparece como SKIPPED, nunca como PASS. |
 | Duplicidade por similaridade | Só para operações. Pessoas são deduplicadas pela matrícula (repetição = erro; fica a primeira). |
 | Tradução | Rótulos principais em pt e 中文; textos longos de ajuda e mensagens de validação só em português. |
@@ -233,7 +255,7 @@ installation_id, content_hash, import_batch_id, sync_origin, restored_from) e ab
 
 ## Testes executados
 
-`npm test` — 120 testes (com subtestes, inclusive o arquivo real da Matriz BYD via `C3B_MATRIZ_REAL`), todos PASS na última execução; detalhes e tabela Funcionalidade →
+`npm test` — 128 testes (com subtestes, inclusive o arquivo real da Matriz BYD via `C3B_MATRIZ_REAL`), todos PASS na última execução; detalhes e tabela Funcionalidade →
 Resultado em [`RELATORIO_TESTES.md`](RELATORIO_TESTES.md) (gerado por `npm run relatorio`, a partir do resultado
 real de cada teste).
 

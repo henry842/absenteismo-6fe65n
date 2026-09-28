@@ -13,7 +13,7 @@
     if (colunas.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: colunas.length } };
     return ws;
   }
-  const COL_ISSUES = [['severidade', 'Severidade', 12], ['schema', 'Base', 12], ['linha', 'Linha', 8], ['campo', 'Campo', 18], ['valor', 'Valor', 22], ['mensagem', 'O que aconteceu', 70], ['comoResolver', 'Como resolver', 50], ['codigo', 'Código', 22]];
+  const COL_ISSUES = [['categoria', 'Categoria', 22], ['severidade', 'Severidade', 12], ['schema', 'Base', 12], ['linha', 'Linha', 8], ['campo', 'Campo', 18], ['valor', 'Valor', 22], ['mensagem', 'O que aconteceu', 70], ['comoResolver', 'Como resolver', 50], ['codigo', 'Código', 22]];
   const COL_LOG = [['aba', 'Aba', 16], ['row_id', 'Linha', 8], ['field', 'Campo', 18], ['original_value', 'Valor original', 26], ['normalized_value', 'Valor padrão C3B', 26], ['rule', 'Regra', 26], ['confidence', 'Confiança', 10], ['decision', 'Decisão', 16]];
 
   // lote: resumo guardado em pacote.lotes (import_batch_id, abas, log, issues...)

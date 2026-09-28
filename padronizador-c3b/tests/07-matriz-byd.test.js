@@ -52,13 +52,18 @@ test('BYD 7: leitura GREEN (FF92D050)', () => {
   const x = reg('JOÃO', 'C14 FZ1');
   assert.equal(x.fill_state, 'GREEN'); assert.equal(x.fill_rgb, 'FF92D050');
 });
-test('BYD 8: leitura YELLOW (FFFFFF00) — L amarelo continua L, sem "VERDE" automático', () => {
+test('BYD 8: cor é só metadado — L amarelo ou de outra cor é simplesmente L', () => {
   const x = reg('JOÃO', 'C16 L1');
   assert.equal(x.skill_level, 'L'); assert.equal(x.fill_state, 'YELLOW'); assert.equal(x.fill_rgb, 'FFFFFF00');
   const outro = reg('PEDRO', 'C14 L1');
-  assert.equal(outro.fill_state, 'OTHER'); assert.equal(outro.fill_rgb, 'FF00B0F0');
+  assert.equal(outro.skill_level, 'L'); assert.equal(outro.fill_state, 'OTHER'); assert.equal(outro.fill_rgb, 'FF00B0F0');
   const branco = reg('MARIA', 'C14 FZ1');
   assert.equal(branco.fill_state, 'NONE'); assert.equal(branco.fill_source, 'TEMA:0', 'cor de tema resolvida (branco)');
+  // a cor não participa de nada de negócio
+  const semCor = r.registros.map(y => ({ ...y, fill_state: 'NONE', fill_rgb: null }));
+  assert.deepEqual(semCor.filter(S.byd.ehAtual).length, r.habilidadesAtuais.length, 'habilidade atual não depende da cor');
+  assert.ok(r.resumo.every(x => !Object.keys(x).some(k => /fill|verde|amarel/i.test(k))), 'resumo (KPI) sem cor');
+  assert.ok(r.validacaoFinal.find(v => /cor/.test(v.item)).ok);
 });
 test('BYD 9: origem do Shape registrada (arquivo, nome, âncora 0-based)', () => {
   const x = reg('CARLOS', 'C14 FZ1');
@@ -82,7 +87,10 @@ test('BYD 10: Base Operacional gerada, reaberta e conferida', async () => {
     assert.ok(c in b.HABILIDADES_ATUAIS[0], `HABILIDADES_ATUAIS.${c}`);
   for (const c of ['skill_level', 'assignment_status', 'is_current_operator', 'is_training_planned', 'is_future_holder', 'fill_state']) assert.ok(c in b.MATRIZ_LONGA[0], `MATRIZ_LONGA.${c}`);
   for (const c of ['purpose', 'shape_type', 'drawing_file', 'shape_name', 'anchor_from_row', 'anchor_from_col', 'anchor_to_row', 'anchor_to_col', 'sheet']) assert.ok(c in b.ORIGEM_MAPEAMENTO[0], `ORIGEM_MAPEAMENTO.${c}`);
-  assert.equal(b.MATRIZ_LONGA.length, 24, '6 pessoas × 4 operações');
+  assert.equal(b.MATRIZ_LONGA.length, 48, '6 pessoas × 4 operações × 2 abas');
+  assert.deepEqual(v.lido.ocultas.HABILIDADES_ATUAIS, ['fill_state', 'fill_rgb', 'fill_source', 'l_marker_raw'], 'cor só como coluna técnica oculta');
+  assert.deepEqual(v.lido.ocultas.MATRIZ_LONGA, ['fill_state']);
+  for (const aba of ['PESSOAS', 'TREINAMENTOS', 'VALIDACAO']) assert.ok(b[aba] && b[aba].length, aba);
   const carlos = b.HABILIDADES_ATUAIS.find(x => x.nome.startsWith('CARLOS') && x.station_code === 'C14 FZ1');
   assert.equal(carlos.assignment_status, 'FUTURO_TITULAR'); assert.equal(carlos.is_future_holder, true);
   assert.ok(b.HABILIDADES_ATUAIS.some(x => x.nome === '王伟 EXEMPLO'), 'chinês preservado');
@@ -100,10 +108,11 @@ test('BYD validações: combinações incomuns viram WARNING e nada é corrigido
   assert.equal(cod('CIRCULO_TRIANGULO_E_L').length, 1); assert.equal(carlos.assignment_status, 'FUTURO_TITULAR'); assert.equal(carlos.skill_level, 'L');
   assert.ok(['CIRCULO_SEM_L', 'TRIANGULO_COM_L', 'CIRCULO_TRIANGULO_E_L'].every(c => cod(c)[0].severidade === 'WARNING'));
   assert.equal(reg('CARLOS', 'C14 FZ1').review_flags, null, '○+△ sem L é o caso normal de futuro titular (sem aviso)');
-  assert.equal(cod('VALOR_NAO_RECONHECIDO').length, 1); assert.match(reg('PEDRO', 'C14 L1').unrecognized_values, /=c$/);
+  assert.equal(cod('VALOR_NAO_RECONHECIDO').length, 2, 'valor desconhecido "XYZ" (SA6H e HA2H) continua virando pendência');
+  assert.match(reg('PEDRO', 'C14 FZ1').unrecognized_values, /=XYZ$/);
   assert.equal(cod('FORMA_FORA_DA_GRADE').length, 1);
   assert.equal(cod('TOTAL_L_DIFERENTE').length, 1, 'resultado salvo da fórmula desatualizado é apontado; a leitura vale pelos marcadores');
-  assert.equal(cod('ABA_EXEMPLO_IGNORADA').length, 1); assert.ok(!r.registros.some(x => x.sheet !== 'SA6H'));
+  assert.equal(cod('ABA_EXEMPLO_IGNORADA').length, 1); assert.deepEqual([...new Set(r.registros.map(x => x.sheet))], ['SA6H', 'HA2H']);
 });
 
 test('BYD layout: blocos, marcador L pela fórmula, papéis, estação e datas', () => {
@@ -116,12 +125,12 @@ test('BYD layout: blocos, marcador L pela fórmula, papéis, estação e datas',
   assert.equal(op.descricao_zh, '左侧后稳定杆分装合件预紧'); assert.match(op.descricao_pt, /^A barra estabilizadora/);
   const maria = reg('MARIA', 'C14 FZ1');
   assert.equal(maria.dates_raw, '12/08/2026\n14/08/2026'); assert.equal(maria.first_date, '2026-08-12'); assert.equal(maria.latest_date, '2026-08-14');
-  assert.equal(r.operadores[0].employee_id_status, 'SEM_MATRICULA'); assert.match(r.operadores[0].employee_id, /^EMP-SEMMATR-[0-9A-F]{8}$/);
+  assert.equal(r.pessoas[0].employee_id_status, 'SEM_MATRICULA'); assert.match(r.pessoas[0].employee_id, /^EMP-SEMMATR-[0-9A-F]{8}$/);
 });
 
 test('BYD: com o Cadastro, a pessoa ganha o employee_id da matrícula', async () => {
   const r2 = await S.byd.extrair(fs.readFileSync(FIX), { pessoas: [{ employee_id: 'EMP-004512', matricula: '004512', nome: 'João Exemplo da Silva' }] });
-  const j = r2.operadores.find(o => o.nome.startsWith('JOÃO'));
+  const j = r2.pessoas.find(o => o.nome.startsWith('JOÃO'));
   assert.equal(j.employee_id, 'EMP-004512'); assert.equal(j.employee_id_status, 'RESOLVIDO_POR_NOME');
 });
 
@@ -130,6 +139,7 @@ test('BYD: a importação detecta a Matriz e não a trata como planilha comum', 
   assert.ok(s.byd); assert.equal(s.byd.perfil, 'BYD_SKILL_MATRIX_V1');
   assert.ok(s.abas.filter(a => a.byd).every(a => !a.selecionada));
   assert.equal(s.byd.resumo[0].futuros_titulares, 2);
+  assert.equal(s.byd.pessoasParecidas.length, 1);
 });
 
 test('BYD: leitor independente (openpyxl) abre a Base Operacional', { skip: (() => { try { execFileSync('python3', ['-c', 'import openpyxl']); return false; } catch (e) { return 'python3/openpyxl indisponível'; } })() }, async () => {
@@ -143,4 +153,75 @@ print(json.dumps({"abas": wb.sheetnames, "meta": wb['_META'].sheet_state, "tipos
   "status": sorted({r['assignment_status'] for r in rows})}))`, arq]).toString());
   assert.deepEqual(out.tipos, ['bool']); assert.equal(out.meta, 'hidden');
   assert.deepEqual(out.status, ['EM_TREINAMENTO', 'FUTURO_TITULAR', 'SEM_DESIGNACAO', 'TITULAR']);
+});
+
+test('BYD resíduo "c": só neste perfil, no log técnico, sem pendência e sem nível', async () => {
+  const pedro = reg('PEDRO', 'C14 L1');
+  assert.equal(pedro.unrecognized_values, null); assert.equal(pedro.review_flags, null); assert.equal(pedro.skill_level, 'L');
+  const log = r.origem.filter(o => o.purpose === 'KNOWN_RESIDUE_IGNORED');
+  assert.ok(log.length >= 1 && log.every(o => o.raw_value === 'c'));
+  assert.ok(!r.pendencias.some(p => /=c\b|"c"/.test(p.mensagem) && p.codigo !== 'ABA_EXEMPLO_IGNORADA'));
+  // não é regra global: fora do perfil BYD, "c" continua sendo um valor desconhecido
+  const m = S.aliases.criarMotor();
+  assert.equal(m.normalizar('FUNCAO', 'c').status, 'UNKNOWN');
+  // e o perfil deixa configurar (sem resíduos, o "c" volta a ser pendência)
+  const r2 = await S.byd.extrair(fs.readFileSync(FIX), { residuosConhecidos: [] });
+  assert.ok(r2.pendencias.some(p => p.codigo === 'VALOR_NAO_RECONHECIDO' && /=c\b/.test(p.mensagem)));
+});
+
+test('BYD pessoas: grafia parecida vira sugestão; só une com confirmação; depois recalcula tudo', async () => {
+  // antes: 7 pessoas, 1 par sugerido, nada unido
+  assert.equal(r.pessoas.length, 7);
+  assert.equal(r.pessoasParecidas.length, 1);
+  const par = r.pessoasParecidas[0];
+  assert.deepEqual([par.a.nome, par.b.nome], ['PEDRO EXEMPLO ALVES', 'PEDRO EXEMPLO ALVSE']);
+  assert.equal(r.pendencias.find(p => p.codigo === 'POSSIVEL_MESMA_PESSOA').categoria, 'PROBLEMA_DE_DADOS');
+  assert.equal(r.validacaoFinal.find(v => /mesma pessoa/.test(v.item)).ok, false);
+  // confirmação pelo fluxo real da importação (grava alias no pacote e reextrai)
+  const pacote = S.createPackage({}, 't');
+  const s = await S.importacao.iniciar({ bytes: new Uint8Array(fs.readFileSync(FIX)), nome: 'matriz.xlsx', pacote, usuario: 'lider' });
+  const depois = await S.importacao.decidirPessoaBYD(s, 0, 'MESMA', { canonico: 'PEDRO EXEMPLO ALVES' });
+  assert.equal(depois.pessoas.length, 6);
+  const alias = pacote.config.aliases.find(a => a.entity_type === 'PESSOA');
+  assert.deepEqual([alias.original_value, alias.normalized_value], ['PEDRO EXEMPLO ALVSE', 'PEDRO EXEMPLO ALVES']);
+  assert.ok(pacote.config.decisoes.some(d => d.tipo === 'PESSOAS_UNIFICADAS'));
+  const pedro = depois.pessoas.find(p => p.nome === 'PEDRO EXEMPLO ALVES');
+  assert.equal(pedro.nomes_na_matriz, 'PEDRO EXEMPLO ALVES | PEDRO EXEMPLO ALVSE'); assert.equal(pedro.abas, 'SA6H,HA2H');
+  // todas as relações com o mesmo employee_id
+  const ids = new Set([...depois.registros.filter(x => /PEDRO/.test(x.nome_na_matriz)).map(x => x.employee_id),
+    ...depois.origem.filter(o => o.purpose === 'OPERATOR_NAME' && /PEDRO/.test(o.raw_value)).map(o => o.employee_id)]);
+  assert.deepEqual([...ids], [pedro.employee_id]);
+  assert.equal(depois.registros.filter(x => x.nome === 'PEDRO EXEMPLO ALVES').length, 8, '4 operações × 2 abas');
+  assert.ok(depois.validacaoFinal.every(v => v.ok), JSON.stringify(depois.validacaoFinal.filter(v => !v.ok)));
+  // o alias vale na próxima importação (sem perguntar de novo)
+  const prox = await S.byd.extrair(fs.readFileSync(FIX), { aliasesUsuario: pacote.config.aliases, decisoes: pacote.config.decisoes, esperado: { modelos: 2, operacoes: 8, pessoas: 6 } });
+  assert.equal(prox.pessoas.length, 6); assert.equal(prox.pessoasParecidas.length, 0);
+  assert.ok(prox.validacaoFinal.every(v => v.ok));
+  // "pessoas diferentes" também é lembrado
+  const pac2 = S.createPackage({}, 't');
+  const s2 = await S.importacao.iniciar({ bytes: new Uint8Array(fs.readFileSync(FIX)), nome: 'matriz.xlsx', pacote: pac2 });
+  const dif = await S.importacao.decidirPessoaBYD(s2, 0, 'DIFERENTES');
+  assert.equal(dif.pessoas.length, 7); assert.equal(dif.pessoasParecidas.length, 0);
+});
+
+test('BYD pendências por categoria: configuração pendente separada de problema de dados', () => {
+  const cat = c => r.pendencias.filter(p => p.categoria === c).map(p => p.codigo);
+  assert.ok(cat('CONFIGURACAO_PENDENTE').includes('CONFIGURACAO_PESSOA'));
+  assert.ok(cat('CONFIGURACAO_PENDENTE').includes('MODELO_DA_ABA'));
+  assert.ok(!cat('PROBLEMA_DE_DADOS').includes('CONFIGURACAO_PESSOA'), 'matrícula ausente não é erro de leitura');
+  for (const c of ['POSSIVEL_MESMA_PESSOA', 'VALOR_NAO_RECONHECIDO', 'FORMA_FORA_DA_GRADE', 'TOTAL_L_DIFERENTE']) assert.ok(cat('PROBLEMA_DE_DADOS').includes(c), c);
+  assert.ok(cat('INFORMACAO').includes('FORMA_DUPLICADA'));
+  const conf = r.pendencias.find(p => p.codigo === 'CONFIGURACAO_PESSOA' && /ANA EXEMPLO SOUZA/.test(p.mensagem));
+  assert.match(conf.mensagem, /falta matrícula, função, turno/);
+  assert.match(r.pendencias.find(p => p.codigo === 'CONFIGURACAO_PESSOA' && /王伟/.test(p.mensagem)).mensagem, /falta matrícula, turno/, 'função vem do papel "Líder" na Matriz');
+  assert.ok(r.pessoas.every(p => p.configuracao_pendente));
+});
+
+test('BYD validação final (sanity check) com valores esperados', async () => {
+  const x = await S.byd.extrair(fs.readFileSync(FIX), { esperado: { modelos: 2, operacoes: 8, pessoas: 6 } });
+  const v = Object.fromEntries(x.validacaoFinal.map(i => [i.item.split(' ')[0] + (i.item.includes('única') ? 'U' : ''), i]));
+  assert.equal(x.validacaoFinal.find(i => i.item === 'Pessoas únicas').ok, false, 'sem confirmar a grafia: 7 ≠ 6');
+  assert.equal(x.validacaoFinal.find(i => i.item === 'Modelos').ok, true);
+  assert.equal(x.validacaoFinal.find(i => i.item === 'Operações').ok, true);
+  assert.ok(v);
 });

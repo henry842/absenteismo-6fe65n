@@ -86,6 +86,8 @@
       usuario.push(a);
       return a;
     }
+    // Pessoa: alias confirmado pelo usuário (grafia variante → nome canônico). Nunca criado por similaridade sozinho.
+    function nomeCanonico(nome) { const u = buscarUsuario('PESSOA', nome); return u ? u.normalized_value : null; }
     function definirAtivo(alias_id, ativo) { const a = usuario.find(x => x.alias_id === alias_id); if (a) a.active = !!ativo; return a; }
     function editar(alias_id, campos) { const a = usuario.find(x => x.alias_id === alias_id); if (a) Object.assign(a, campos); return a; }
     function adicionarModelo(model_id, aliases = [], created_by = 'admin') {
@@ -102,7 +104,7 @@
     }
 
     return {
-      normalizar, adicionar, definirAtivo, editar, adicionarModelo, adicionarValor,
+      normalizar, nomeCanonico, adicionar, definirAtivo, editar, adicionarModelo, adicionarValor,
       listar: () => usuario.slice(),
       modelos: () => modelos.slice(),
       valores: entidade => (enums[entidade] || []).slice(),

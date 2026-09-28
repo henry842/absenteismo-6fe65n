@@ -1,12 +1,13 @@
 // Validação: gera a lista de pendências com severidade (INFO, WARNING, ERROR, BLOCKING), explicando
 // linha, campo, valor, motivo e como resolver. BLOCKING impede a geração oficial até ser resolvido
 // ou até uma decisão administrativa explícita e registrada.
-(typeof module === 'object' ? require('../modulo') : C3BModulo)('core/validar', ['core/util', 'core/dicionario'], (U, D) => {
+(typeof module === 'object' ? require('../modulo') : C3BModulo)('core/validar', ['core/util', 'core/dicionario', 'core/pessoas'], (U, D, PS) => {
   'use strict';
 
   const SEV = ['INFO', 'WARNING', 'ERROR', 'BLOCKING'];
   let seq = 0;
-  const novo = (o) => ({ issue_id: `ISS-${String(++seq).padStart(5, '0')}`, ...o });
+  // Toda pendência leva a categoria: Configuração pendente / Problema de dados / Aviso / Informação técnica
+  const novo = (o) => ({ issue_id: `ISS-${String(++seq).padStart(5, '0')}`, ...o, categoria: PS.categoriaDe(o.codigo, { campo: o.campo, severidade: o.severidade }) });
 
   // registros: saída de normalizarAba (com detalhes). mapeamento: para avisar colunas ignoradas (LGPD).
   function validarDataset(schemaId, registros, { mapeamento = [], ignoradas = [] } = {}) {

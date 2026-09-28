@@ -95,6 +95,7 @@
         ${lista.length ? `<div class="tabelaWrap" style="max-height:560px">${lista.slice(0, 300).map((g, i) => linhaDepara(s, g, i)).join('')}</div>${lista.length > 300 ? `<small style="color:#8fa39a">Mostrando 300 de ${lista.length}. Use os filtros.</small>` : ''}`
           : UI.vazio(todos.length ? 'Nada com esse filtro.' : 'Nenhum valor pendente.', todos.length ? '' : 'Todos os valores foram reconhecidos ou decididos.')}
       </div>
+      ${pessoasHTML(processados)}
       ${dups.length ? `<div class="panel bloco"><h3>Operações parecidas<small>疑似重复工序 · nunca unidas sozinhas</small></h3>${dups.map(t => t.resultado.duplicidades.map((p, i) => parHTML(t, p, i)).join('')).join('')}</div>` : ''}
       <div class="grid2">
         <div class="panel bloco"><h3>Conversões automáticas<small>自动转换 · para conferência</small></h3>
@@ -128,6 +129,17 @@
         <button class="btn sm fantasma acaoDp" data-acao="IGNORAR" data-i="${i}">Ignorar</button>
         ${podeAlias ? `<label style="font-size:11px;color:#9fb3aa;display:flex;gap:4px;align-items:center"><input type="checkbox" class="aliasDp" data-i="${i}"/> criar alias</label>` : ''}
       </div></div>`;
+  }
+
+  // Possível mesma pessoa (nomes muito parecidos): só sugestão; une apenas com confirmação
+  function pessoasHTML(processados) {
+    const com = processados.filter(t => t.resultado.pessoasParecidas && t.resultado.pessoasParecidas.length);
+    if (!com.length) return '';
+    return `<div class="panel bloco" style="border-color:#7a6320"><h3>Possível mesma pessoa<small>疑似同一人 · nada é unido sem sua confirmação</small></h3>
+      ${com.map(t => t.resultado.pessoasParecidas.map((p, i) => `<div class="parDup"><div class="grid2">${[p.a, p.b].map(x => `<div><b>${esc(x.nome)}</b><div style="color:#8fa39a;font-size:11px">${esc(x.employee_id)} · ${x.origem === 'PACOTE' ? 'já no Cadastro' : 'nesta importação'}</div></div>`).join('')}</div>
+        <div class="linhaForm"><span style="font-size:12px">${p.similaridade}% parecidos</span><label class="campo"><b>Nome que fica</b><select class="select pesCanon" data-aba="${esc(t.aba)}" data-i="${i}">${[p.a, p.b].map(x => `<option ${x.origem === 'PACOTE' ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></label>
+          <button class="btn sm primary pesAcao" data-aba="${esc(t.aba)}" data-i="${i}" data-escolha="MESMA">✓ Mesma pessoa</button><button class="btn sm pesAcao" data-aba="${esc(t.aba)}" data-i="${i}" data-escolha="DIFERENTES">Pessoas diferentes</button></div></div>`).join('')).join('')}
+      <small style="color:#8fa39a">"Mesma pessoa" grava um alias PESSOA (vale nas próximas importações) e tira a grafia repetida desta importação.</small></div>`;
   }
 
   function parHTML(t, p, i) {
@@ -218,6 +230,13 @@
         UI.toast(b.dataset.escolha === 'MESMA' ? `Unificadas: ${r.removida} passa a usar ${r.mantida} (alias gravado).` : b.dataset.escolha === 'DIFERENTES' ? 'Registrado: são operações diferentes.' : 'Deixado para revisar depois.');
         render();
       } catch (e) { UI.erro(e, 'Duplicidade'); }
+    });
+    $$('.pesAcao').forEach(b => b.onclick = () => {
+      try {
+        const canonico = $(`.pesCanon[data-aba="${b.dataset.aba}"][data-i="${b.dataset.i}"]`).value;
+        S.importacao.decidirPessoa(s, b.dataset.aba, +b.dataset.i, b.dataset.escolha, { canonico });
+        UI.salvarProjeto(); UI.toast(b.dataset.escolha === 'MESMA' ? `Mesma pessoa: fica "${canonico}". Alias gravado.` : 'Registrado: pessoas diferentes.'); render();
+      } catch (e) { UI.erro(e, 'Pessoas'); }
     });
     $('#reprocessar').onclick = async () => { try { await reprocessar(s); UI.toast('Abas reprocessadas.'); render(); } catch (e) { UI.erro(e, 'Reprocessar'); } };
   }

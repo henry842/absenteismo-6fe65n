@@ -58,7 +58,7 @@
 
   function aliases() {
     const lista = UI.pacote().config.aliases || [];
-    const entidades = ['MODELO', 'OPERACAO'].concat(Object.keys(D.ENUMS));
+    const entidades = ['PESSOA', 'MODELO', 'OPERACAO'].concat(Object.keys(D.ENUMS));
     return `<div class="linhaForm so-implantador"><label class="campo"><b>Tipo</b><select class="select" id="alEnt">${entidades.map(e => `<option>${e}</option>`).join('')}</select></label>
       <label class="campo"><b>Como aparece na planilha</b><input class="input" id="alOrig" placeholder="ex.: 2T"/></label><label class="campo"><b>Valor oficial</b><input class="input" id="alNovo" placeholder="ex.: TURNO_2"/></label><button class="btn sm" id="alCriar">Criar alias</button></div>
       ${lista.length ? `<table class="table"><thead><tr><th>ID</th><th>Tipo</th><th>Original</th><th>Oficial</th><th>Criado por</th><th>Em</th><th>Ativo</th><th></th></tr></thead><tbody>
