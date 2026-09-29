@@ -27,6 +27,7 @@ if (window.top !== window.self) {
     trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>',
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
     sheet: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h2M14 13h2M8 17h2M14 17h2"/>',
@@ -760,6 +761,52 @@ if (window.top !== window.self) {
     return `<svg class="grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="Absenteísmo por dia – ${esc(serie)}">${grade.join('')}${meta}<path class="serie" d="${linha}"/>${bolas}${rotulos}</svg>`;
   }
 
+  // Lançamentos gravados no período: corrigir (volta para a Conferência) ou apagar
+  function lancamentosHTML(de, ate) {
+    const ts = [...new Set(Object.values(base.fechamentos).filter(f => f.data >= de && f.data <= ate).map(f => f.time))].sort(ordenarTimes);
+    const ft = ts.includes(desenharPeriodo.timeLanc) ? desenharPeriodo.timeLanc : '';
+    const fs = Object.values(base.fechamentos).filter(f => f.data >= de && f.data <= ate && (!ft || f.time === ft))
+      .sort((a, b) => b.data.localeCompare(a.data) || ordenarTimes(a.time, b.time));
+    return `<div class="cartao nao-imprimir" id="cartaoLancamentos">
+      <div class="cartao-topo">
+        <div class="ladrilho p">${ic('fileText')}</div>
+        <div><h3>Lançamentos gravados</h3><p>Corrija ou apague o que foi lançado errado (time, data, números ou pessoas). Vale no celular e no computador.</p></div>
+        <span class="espaco"></span>
+        <select id="filtroTimeLanc" style="width:auto;min-width:160px"><option value="">Todos os times</option>${ts.map(t => `<option${t === ft ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      </div>
+      <div class="tabela-rolar" style="max-height:420px;overflow-y:auto"><table class="cinza">
+        <thead><tr><th>Data</th><th>Time</th><th class="num">Total</th><th class="num">Presentes</th><th class="num">Ausentes</th><th>Pessoas</th><th></th></tr></thead>
+        <tbody>${fs.map(f => { const k = L.chaveFechamento(f.data, f.time); return `<tr>
+          <td>${L.dataBR(f.data)}</td><td><b>${esc(f.time)}</b>${f.turno ? `<br><span style="color:var(--fraco);font-size:13px">${esc(f.turno)}</span>` : ''}</td>
+          <td class="num">${f.efetivo}</td><td class="num">${f.presentes}</td><td class="num">${f.ausentes}</td>
+          <td style="font-size:14px">${f.pessoas.length ? f.pessoas.map(p => esc(p.nome || p.matricula)).join(', ') : '<span style="color:var(--fraco)">—</span>'}</td>
+          <td style="white-space:nowrap"><button class="botao sec" data-corrigir-lanc="${esc(k)}" title="Abrir na Conferência para corrigir">${ic('edit')}Corrigir</button>
+            <button class="botao perigo icone" data-apagar-lanc="${esc(k)}" title="Apagar lançamento">${ic('trash')}</button></td></tr>`; }).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+  function ligarLancamentos() {
+    const sel = $('#filtroTimeLanc');
+    if (!sel) return;
+    sel.onchange = e => { desenharPeriodo.timeLanc = e.target.value; desenharPeriodo(); };
+    document.querySelectorAll('[data-apagar-lanc]').forEach(b => b.onclick = () => {
+      const f = base.fechamentos[b.dataset.apagarLanc]; if (!f) return;
+      if (!confirm(`Apagar o lançamento do ${f.time} de ${L.dataBR(f.data)}?\n\n${f.efetivo} pessoas, ${f.ausentes} ausente(s). Some no celular e no computador.`)) return;
+      delete base.fechamentos[b.dataset.apagarLanc];
+      salvar(); desenharPeriodo(); aviso(`${f.time} de ${L.dataBR(f.data)} apagado.`);
+    });
+    document.querySelectorAll('[data-corrigir-lanc]').forEach(b => b.onclick = () => {
+      const k = b.dataset.corrigirLanc, f = base.fechamentos[k]; if (!f) return;
+      if (!fila.some(m => m.substitui === k)) {
+        const m = L.mensagemDoFechamento(f);
+        m.id = proximoId++;
+        fila.push(m); atualizarContador();
+      }
+      aviso(`${f.time} de ${L.dataBR(f.data)} aberto na Conferência. Corrija e clique em Gravar.`);
+      irPara('conferencia');
+    });
+  }
+
   function desenharPeriodo() {
     if (!$('#periodoAte').value) $('#periodoAte').value = ultimaData();
     if (!$('#periodoDe').value) { $('#periodoDe').value = L.somarDias($('#periodoAte').value, -6); desenharPeriodo.atalho = null; }
@@ -798,6 +845,7 @@ if (window.top !== window.self) {
 
     alvo.innerHTML = `
       <h2 class="so-impressao">Absenteísmo – ${L.dataBR(de)} a ${L.dataBR(ate)}</h2>
+      ${lancamentosHTML(de, ate)}
       <div class="cartao">
         <div class="cartao-topo">
           <div class="ladrilho p">${ic('trend')}</div>
@@ -863,6 +911,7 @@ if (window.top !== window.self) {
         <pre class="whats">${esc(texto)}</pre>
       </div>`;
     $('#serieGrafico').onchange = e => { desenharPeriodo.serie = e.target.value; desenharPeriodo(); };
+    ligarLancamentos();
     $('#btnCopiarPeriodo').onclick = async () => aviso(await copiar(texto) ? 'Resumo do período copiado.' : 'Não consegui copiar.');
     $('#btnImprimirPeriodo').onclick = () => window.print();
   }
@@ -876,7 +925,11 @@ if (window.top !== window.self) {
   // ---------- Ajustes ----------
   function desenharModelo() {
     $('#previaModelo').textContent = L.textoModelo(hoje(), $('#modeloTime').value);
-    $('#previaOrientacao').textContent = L.textoOrientacao(hoje(), $('#modeloTime').value);
+  }
+  // Texto do padrão completo: o salvo na conta ou o original (com {TIME} e {DATA})
+  function desenharTextoPadrao() {
+    $('#textoPadrao').value = base.config.textoPadrao || L.modeloOrientacao();
+    $('#etiquetaTextoPadrao').hidden = !base.config.textoPadrao;
   }
   function contarTimes() {
     const n = $('#cfgTimes').value.split(/[\n;]+/).map(L.normalizarTime).filter(Boolean).length;
@@ -893,6 +946,7 @@ if (window.top !== window.self) {
     $('#modeloTime').innerHTML = ['<option value="">Sem time (o líder escreve)</option>']
       .concat(times.map(t => `<option${t === escolhido ? ' selected' : ''}>${esc(t)}</option>`)).join('');
     desenharModelo();
+    if (document.activeElement !== $('#textoPadrao')) desenharTextoPadrao();
     $('#cfgTimes').value = base.config.times.join('\n');
     contarTimes();
     $('#cfgNaoContam').innerHTML = L.MOTIVOS.map(m => `
@@ -929,8 +983,20 @@ if (window.top !== window.self) {
     salvar(); aviso('Área e meta salvas.');
   });
   $('#modeloTime').addEventListener('change', desenharModelo);
+  // Copia o que está na caixa (mesmo sem salvar), com o time e a data preenchidos
   $('#btnCopiarOrientacao').addEventListener('click', async () =>
-    aviso(await copiar(L.textoOrientacao(hoje(), $('#modeloTime').value)) ? 'Padrão completo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
+    aviso(await copiar(L.textoOrientacao(hoje(), $('#modeloTime').value, $('#textoPadrao').value)) ? 'Padrão completo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
+  $('#btnSalvarTextoPadrao').addEventListener('click', () => {
+    const v = $('#textoPadrao').value;
+    // Vazio = texto original. Não apaga a chave: a sincronização junta a config campo a campo e traria o texto antigo de volta
+    base.config.textoPadrao = !v.trim() || v.trim() === L.modeloOrientacao().trim() ? '' : v.slice(0, 8000);
+    salvar(); desenharTextoPadrao();
+    aviso(base.config.textoPadrao ? 'Texto salvo. Vale no celular e no computador.' : 'Texto original mantido.');
+  });
+  $('#btnRestaurarTextoPadrao').addEventListener('click', () => {
+    if (base.config.textoPadrao && !confirm('Voltar ao texto original? O seu texto editado será apagado.')) return;
+    base.config.textoPadrao = ''; salvar(); desenharTextoPadrao(); aviso('Voltou ao texto original.');
+  });
   $('#btnCopiarModelo').addEventListener('click', async () =>
     aviso(await copiar($('#previaModelo').textContent) ? 'Modelo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
 

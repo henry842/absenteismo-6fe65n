@@ -327,7 +327,17 @@
       completarNumeros(m);
     }
     completarTimes(mensagens, (opcoes && opcoes.times) || []);
-    return mensagens;
+    return tirarCorrigidas(mensagens);
+  }
+
+  // "CORREÇÃO – Absenteísmo C1B …": a correção substitui a mensagem do mesmo time e dia colada antes dela
+  function tirarCorrigidas(mensagens) {
+    for (const m of mensagens) m.correcao = /\bcorrec(ao|oes)\b|\bcorrigid[oa]\b/.test(dobrar(m.texto.split('\n').slice(0, 3).join(' ')));
+    return mensagens.filter((m, i) => !(m.time && m.data && mensagens.slice(i + 1).some(n => {
+      if (!(n.correcao && n.time === m.time && n.data === m.data)) return false;
+      n.corrigiu = (n.corrigiu || 0) + 1;
+      return true;
+    })));
   }
 
   // "C5-" (faltou a letra): se só existe um C5x nos times cadastrados, é ele. Senão, se todos os outros times
@@ -372,6 +382,7 @@
     else if (m.timeCompletado) add('amarelo', `Time veio "${m.timeCompletado.de}-" sem a letra; pelos outros times entendi ${m.time}. Confira.`);
     else if (times.length && !times.includes(m.time)) add('amarelo', `O time ${m.time} não está na lista de times dos Ajustes.`);
 
+    if (m.corrigiu) add('info', `Mensagem de CORREÇÃO: substituiu a mensagem do ${m.time} enviada antes.`);
     if (!m.data) add('amarelo', 'A mensagem não tem data. Confira a data.');
     else if (m.dataDoWhats) add('info', `A mensagem não tinha data; usei a data do WhatsApp (${dataBR(m.data)}).`);
 
@@ -429,10 +440,11 @@
 
     if (base && m.time && m.data) {
       const chave = chaveFechamento(m.data, m.time);
-      if (base.fechamentos && base.fechamentos[chave])
+      if (m.substitui === chave) add('info', `Corrigindo o lançamento já gravado do ${m.time} de ${dataBR(m.data)}. Ao gravar, substitui o anterior.`);
+      else if (base.fechamentos && base.fechamentos[chave])
         add('amarelo', `O ${m.time} de ${dataBR(m.data)} já foi lançado. Se confirmar, substitui o anterior.`);
       for (const f of Object.values(base.fechamentos || {})) {
-        if (f.data !== m.data || f.time === m.time) continue;
+        if (f.data !== m.data || f.time === m.time || chaveFechamento(f.data, f.time) === m.substitui) continue;
         for (const p of f.pessoas) {
           if (p.matricula && vistas[p.matricula])
             add('vermelho', `Matrícula ${p.matricula} já está como ausente no ${f.time} neste mesmo dia.`);
@@ -522,6 +534,8 @@
       texto: m.texto || '',
       confirmadoEm: agora || new Date().toISOString(),
     };
+    // Correção de um lançamento: se mudou o time ou a data, o original sai (não fica duplicado)
+    if (m.substitui && m.substitui !== chaveFechamento(m.data, m.time)) delete nova.fechamentos[m.substitui];
     nova.fechamentos[chaveFechamento(m.data, m.time)] = f;
     for (const p of f.pessoas) {
       if (!p.matricula) continue;
@@ -591,6 +605,7 @@
     const meta = Number(c.meta);
     nova.config.meta = c.meta != null && Number.isFinite(meta) && meta > 0 && meta < 1 ? meta : null;
     if (c.area) nova.config.area = texto(c.area, 80);
+    if (typeof c.textoPadrao === 'string') nova.config.textoPadrao = c.textoPadrao.slice(0, 8000);   // '' = texto original
     return nova;
   }
 
@@ -737,48 +752,110 @@
     ].join('\n');
   }
 
-  // Mensagem para mandar UMA VEZ no grupo: o padrão completo, com exemplo preenchido e as regras.
-  // O exemplo é lido pelo sistema sem nenhum aviso (testado).
+  // Mensagem para mandar UMA VEZ no grupo: o padrão completo, com exemplos preenchidos e as regras.
+  // O texto pode ser editado em Ajustes (fica em config.textoPadrao); {TIME} e {DATA} são trocados
+  // pelo time escolhido e pela data do dia. Os exemplos são lidos pelo sistema sem nenhum aviso (testado).
   function exemploPadrao(data, time) {
-    return [
-      `*Absenteísmo ${time || 'C1B'} ${dataBR(data)}*`,
-      '*Turno:* 2º turno',
-      '',
-      '*Total de pessoas:* 30',
-      '*Presentes:* 28',
-      '*Ausentes:* 2',
-      '',
-      '*Nome:* Fulano de Tal',
-      '*Matrícula:* 1234567',
-      '*Motivo:* Atestado médico',
-      '',
-      '*Nome:* Ciclano da Silva',
-      '*Matrícula:* 7654321',
-      '*Motivo:* Atraso roteiro',
-    ].join('\n');
+    return preencherModelo(EXEMPLO_COM_AUSENTES, data, time);
   }
-  function textoOrientacao(data, time) {
+  const EXEMPLO_COM_AUSENTES = [
+    '*Absenteísmo {TIME} {DATA}*',
+    '*Turno:* 2º turno',
+    '',
+    '*Total de pessoas:* 30',
+    '*Presentes:* 27',
+    '*Ausentes:* 3',
+    '',
+    '*Nome:* Fulano de Tal',
+    '*Matrícula:* 1234567',
+    '*Motivo:* Atestado médico',
+    '',
+    '*Nome:* Ciclano da Silva',
+    '*Matrícula:* 7654321',
+    '*Motivo:* Atraso roteiro',
+    '',
+    '*Nome:* Beltrana Souza',
+    '*Matrícula:* 1122334',
+    '*Motivo:* Férias',
+  ].join('\n');
+  const EXEMPLO_SEM_AUSENTES = [
+    '*Absenteísmo {TIME} {DATA}*',
+    '*Turno:* 2º turno',
+    '',
+    '*Total de pessoas:* 30',
+    '*Presentes:* 30',
+    '*Ausentes:* 0',
+  ].join('\n');
+  const DICA_MOTIVO = {
+    'Atestado médico': 'atestado, declaração de consulta ou exame',
+    'Atraso roteiro': 'o ônibus/fretado atrasou',
+    'Atraso motivo pessoal': 'chegou atrasado por motivo próprio',
+    'Sem justificativa': 'faltou e não avisou nem justificou',
+    'Afastamento INSS': 'afastado pelo INSS',
+    'Turno ADM': 'está no horário administrativo',
+    'Atraso sem justificativa': 'chegou atrasado e não explicou',
+    'Férias': 'de férias (entra na lista e no total)',
+    'Outros': 'qualquer outro caso — explique ao lado: "Outros – doação de sangue"',
+  };
+  const LINHA = '━━━━━━━━━━━━━━━';
+  function modeloOrientacao() {
     return [
       '*📋 PADRÃO DA MENSAGEM DE ABSENTEÍSMO*',
-      'Pessoal, a partir de hoje mandem o absenteísmo *sempre neste formato*, uma mensagem por time. Assim o sistema lê sozinho e não precisa conferir na mão.',
+      'Pessoal, a partir de hoje mandem o absenteísmo *sempre neste formato*: uma mensagem por time, em texto (não mandem print nem foto). Assim o sistema lê sozinho e ninguém precisa conferir na mão.',
       '',
-      '*Exemplo:*',
+      '⏰ *Quando mandar:* todo dia, assim que fechar a presença do turno.',
       '',
-      exemploPadrao(data, time),
+      LINHA, '*✅ EXEMPLO COM AUSENTES*', LINHA,
+      EXEMPLO_COM_AUSENTES,
       '',
-      '*Regras:*',
+      LINHA, '*✅ EXEMPLO SEM AUSENTES*', LINHA,
+      EXEMPLO_SEM_AUSENTES,
+      '',
+      LINHA, '*📌 REGRAS*', LINHA,
       '1️⃣ *Time completo, com a letra:* C1B, C5B, C4B (não "C5-", "C04 B").',
-      '2️⃣ *Data* com dia/mês/ano: 29/09/2026.',
-      '3️⃣ *Total de pessoas* = todo o quadro do time, *inclusive quem está de férias ou afastado*.',
-      '4️⃣ *Ausentes* = Total − Presentes. Tem que dar o mesmo número de nomes da lista.',
-      '5️⃣ Para *cada* ausente: *Nome*, *Matrícula* e *Motivo*, uma linha cada, e uma linha em branco entre as pessoas.',
-      '6️⃣ *Motivo* — use um destes:',
-      ...MOTIVOS.map(m => `   • ${m}${m === 'Outros' ? ' (explique ao lado: "Outros – doação de sangue")' : ''}`),
+      '2️⃣ *Data* com dia/mês/ano: {DATA}.',
+      '3️⃣ *Turno* escrito assim: 1º turno, 2º turno ou 3º turno.',
+      '4️⃣ *Total de pessoas* = todo o quadro do time, *inclusive quem está de férias ou afastado*.',
+      '5️⃣ *Ausentes* = Total − Presentes. Tem que dar o mesmo número de nomes da lista.',
+      '6️⃣ Para *cada* ausente: *Nome*, *Matrícula* e *Motivo*, uma linha cada, e uma linha em branco entre as pessoas.',
       '7️⃣ Sem ausentes: mande *Ausentes: 0* e não coloque nomes.',
       '8️⃣ Não precisa mandar contagem por motivo (atestado = 1, roteiro = 0…): o sistema conta sozinho pela lista.',
       '',
+      LINHA, '*📝 QUAL MOTIVO USAR*', LINHA,
+      ...MOTIVOS.map(m => `• *${m}* – ${DICA_MOTIVO[m]}`),
+      '',
+      LINHA, '*✏️ ERROU?*', LINHA,
+      'Mande a mensagem *inteira* de novo, com *CORREÇÃO* no começo do título:',
+      '*CORREÇÃO – Absenteísmo {TIME} {DATA}*',
+      'Vale a última mensagem enviada.',
+      '',
+      LINHA, '*❌ EVITE*', LINHA,
+      '• Time sem a letra ("C5-") ou com zero ("C04 B")',
+      '• Presentes maior que o total',
+      '• Nome sem matrícula',
+      '• Só a contagem por motivo, sem a lista de nomes',
+      '• Vários times na mesma mensagem',
+      '',
       '_Pode copiar o exemplo, trocar os números e os nomes e mandar._ 🙏',
     ].join('\n');
+  }
+  function preencherModelo(texto, data, time) {
+    return String(texto || '').replace(/\{TIME\}/gi, time || 'C1B').replace(/\{DATA\}/gi, dataBR(data));
+  }
+  // personalizado: o texto editado em Ajustes (se houver); senão, o padrão
+  function textoOrientacao(data, time, personalizado) {
+    return preencherModelo(personalizado && String(personalizado).trim() ? personalizado : modeloOrientacao(), data, time);
+  }
+
+  // Lançamento já gravado → mensagem para corrigir de novo na Conferência (ao gravar, substitui o original)
+  function mensagemDoFechamento(f) {
+    return {
+      data: f.data, time: f.time, timeBruto: f.time, timeIncompleto: false, turno: f.turno || null,
+      efetivo: f.efetivo, presentes: f.presentes, ausentes: f.efetivo - f.presentes, ausentesInformado: false,
+      contagens: {}, linhasIgnoradas: [], texto: f.texto || '',
+      pessoas: f.pessoas.map(p => ({ nome: p.nome, matricula: p.matricula, motivo: p.motivo, motivoOriginal: p.motivoOriginal || p.motivo, motivoReconhecido: true })),
+      substitui: chaveFechamento(f.data, f.time),
+    };
   }
 
   // Números de um período (de/até inclusive, datas ISO).
@@ -897,7 +974,7 @@
     lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
     resumoDoDia, textoWhatsApp, historicoPessoa, csvAusencias, csvFechamentos, dataBR, pct, nomeBonito,
     DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa, sanearBase,
-    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,
+    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, modeloOrientacao, preencherModelo, mensagemDoFechamento, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Leitor;

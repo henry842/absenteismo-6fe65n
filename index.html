@@ -771,7 +771,15 @@
           <button class="botao sec" id="btnCopiarModelo"><i data-i="copy"></i>Copiar modelo em branco</button>
         </div>
         <div class="previa"><b>Modelo em branco (para o líder preencher todo dia)</b><pre id="previaModelo"></pre></div>
-        <details class="previa" style="margin-top:10px"><summary><b>Padrão completo com regras (mande uma vez no grupo)</b></summary><pre id="previaOrientacao"></pre></details>
+        <div class="previa" style="margin-top:10px">
+          <b>Padrão completo com regras (mande uma vez no grupo) — pode editar</b> <span class="etiqueta" id="etiquetaTextoPadrao" hidden>texto seu</span>
+          <p style="margin:6px 0 8px;color:var(--fraco);font-size:14px">Mude o que quiser e clique em <strong>Salvar texto</strong>. <strong>{TIME}</strong> vira o time escolhido acima e <strong>{DATA}</strong> vira a data de hoje. O texto fica salvo na sua conta.</p>
+          <textarea id="textoPadrao" rows="22" spellcheck="false" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:14px"></textarea>
+          <div class="linha" style="margin-top:10px">
+            <button class="botao" id="btnSalvarTextoPadrao"><i data-i="save"></i>Salvar texto</button>
+            <button class="botao sec" id="btnRestaurarTextoPadrao"><i data-i="history"></i>Voltar ao texto original</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="grade-2">

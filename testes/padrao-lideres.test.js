@@ -76,7 +76,7 @@ test('padrão completo para o grupo: tem as regras, os motivos e o exemplo é li
     assert.ok(o.includes(trecho), trecho);
   const ms = L.lerMensagens(L.exemploPadrao('2026-09-29', 'C3B'), { ano: 2026 });
   assert.equal(ms.length, 1);
-  assert.deepEqual([ms[0].time, ms[0].data, ms[0].turno, ms[0].efetivo, ms[0].presentes, ms[0].ausentes], ['C3B', '2026-09-29', '2º turno', 30, 28, 2]);
+  assert.deepEqual([ms[0].time, ms[0].data, ms[0].turno, ms[0].efetivo, ms[0].presentes, ms[0].ausentes], ['C3B', '2026-09-29', '2º turno', 30, 27, 3]);
   assert.deepEqual(L.conferir(ms[0]), { status: 'verde', problemas: [] });
   const [x] = L.lerMensagens('Absenteísmo C3B 29/09/2026\nTotal de pessoas: 5\nPresentes: 4\nNome: Ana Exemplo\nMatrícula: 1000301\nMotivo: Outros – doação de sangue', { ano: 2026 });
   assert.deepEqual(L.conferir(x), { status: 'verde', problemas: [] });
@@ -85,4 +85,77 @@ test('padrão completo para o grupo: tem as regras, os motivos e o exemplo é li
 test('"Sem atraso", "Nenhum" e motivos soltos não viram nome de pessoa', () => {
   for (const s of ['Sem Atraso', 'Nenhum ausente', 'Atestado médico', 'Sem justificativa']) assert.equal(L.pareceNome(s), null, s);
   assert.equal(L.pareceNome('Maria da Luz dos Santos'), 'Maria da Luz dos Santos');
+});
+
+// Tira os blocos de exemplo do padrão completo (entre as linhas ━━━ de "EXEMPLO …")
+function exemplos(texto) {
+  const partes = texto.split(/━+\n\*✅ EXEMPLO[^\n]*\n━+\n/).slice(1);
+  return partes.map(p => p.split(/\n\n━/)[0]);
+}
+
+test('padrão completo: dois exemplos (com e sem ausentes) lidos sem aviso, motivos explicados, CORREÇÃO', () => {
+  const o = L.textoOrientacao('2026-09-30', 'C5B');
+  assert.ok(!/\{TIME\}|\{DATA\}/.test(o), 'marcadores trocados');
+  for (const trecho of ['QUAL MOTIVO USAR', 'ERROU?', 'CORREÇÃO – Absenteísmo C5B 30/09/2026', 'EVITE', '1º turno, 2º turno'])
+    assert.ok(o.includes(trecho), trecho);
+  const ex = exemplos(o);
+  assert.equal(ex.length, 2);
+  for (const e of ex) {
+    const ms = L.lerMensagens(e, { ano: 2026 });
+    assert.equal(ms.length, 1, e);
+    assert.equal(ms[0].time, 'C5B'); assert.equal(ms[0].data, '2026-09-30');
+    assert.deepEqual(L.conferir(ms[0], null, { naoContam: ['Férias'] }), { status: 'verde', problemas: [] });
+  }
+});
+
+test('texto do padrão editável: {TIME}/{DATA} trocados, fica na config e passa pela limpeza da base', () => {
+  const meu = 'Bom dia, líderes do {TIME}!\nMandem o absenteísmo de {data} neste formato.';
+  assert.equal(L.textoOrientacao('2026-09-30', 'C2B', meu), 'Bom dia, líderes do C2B!\nMandem o absenteísmo de 30/09/2026 neste formato.');
+  assert.equal(L.textoOrientacao('2026-09-30', 'C2B', '   '), L.textoOrientacao('2026-09-30', 'C2B'), 'vazio = texto original');
+  const b = L.baseVazia(); b.config.textoPadrao = meu;
+  assert.equal(L.sanearBase(JSON.parse(JSON.stringify(b))).config.textoPadrao, meu);
+  assert.equal(L.sanearBase({ config: { textoPadrao: 'x'.repeat(9000) } }).config.textoPadrao.length, 8000);
+  assert.equal(L.sanearBase({ config: { textoPadrao: { mal: 1 } } }).config.textoPadrao, undefined);
+  // "Voltar ao original" grava '' (não apaga a chave): outro aparelho com o texto antigo não o traz de volta
+  const S = require('../sincronia.js');
+  const aparelhoA = L.baseVazia(); aparelhoA.config.textoPadrao = meu;
+  const espelho = S.mapaDaBase(aparelhoA);
+  const aparelhoB = JSON.parse(JSON.stringify(aparelhoA)); aparelhoB.config.textoPadrao = '';
+  const r = S.aplicarRemotos(aparelhoA, espelho, S.linhasParaEnviar(aparelhoB, ['config']), {});
+  assert.equal(r.base.config.textoPadrao, '');
+  assert.equal(L.textoOrientacao('2026-09-30', 'C2B', r.base.config.textoPadrao), L.textoOrientacao('2026-09-30', 'C2B'));
+});
+
+test('CORREÇÃO colada junto com a mensagem original: fica só a correção', () => {
+  const t = ['[30/09/2026, 15:40:00] ~ Lider: *Absenteísmo C2B 30/09/2026*', 'Total de pessoas: 30', 'Presentes: 29', 'Ausentes: 1',
+    'Nome: Jairo Exemplo', 'Matrícula: 1000108', 'Motivo: Atestado médico',
+    '[30/09/2026, 15:52:00] ~ Lider: *CORREÇÃO – Absenteísmo C2B 30/09/2026*', 'Total de pessoas: 30', 'Presentes: 28', 'Ausentes: 2',
+    'Nome: Jairo Exemplo', 'Matrícula: 1000108', 'Motivo: Atestado médico', '',
+    'Nome: Jonas Teste', 'Matrícula: 1000110', 'Motivo: Atraso roteiro',
+    '[30/09/2026, 15:53:00] ~ Outro: *Absenteísmo C3B 30/09/2026*', 'Total de pessoas: 40', 'Presentes: 40', 'Ausentes: 0'].join('\n');
+  const ms = L.lerMensagens(t, { ano: 2026 });
+  assert.deepEqual(ms.map(m => [m.time, m.presentes]), [['C2B', 28], ['C3B', 40]]);
+  const c = L.conferir(ms[0]);
+  assert.equal(c.status, 'verde');
+  assert.match(c.problemas[0].texto, /CORREÇÃO: substituiu/);
+});
+
+test('corrigir lançamento gravado: volta para a Conferência e, ao gravar, substitui (mesmo mudando time ou data)', () => {
+  let base = L.baseVazia();
+  for (const m of L.lerMensagens(COLADO, { ano: 2026 })) base = L.gravar(base, m, '2026-09-29T18:00:00Z');
+  assert.equal(Object.keys(base.fechamentos).length, 6);
+  // C5B lançado errado: era do C6B e presentes 14
+  const m = L.mensagemDoFechamento(base.fechamentos['2026-09-29|C5B']);
+  assert.equal(m.substitui, '2026-09-29|C5B');
+  assert.deepEqual(m.pessoas.map(p => [p.nome, p.matricula, p.motivo]), [['Anselmo Martins Teste', '1000102', 'Atraso roteiro']]);
+  let c = L.conferir(m, base, { naoContam: ['Férias'] });
+  assert.equal(c.status, 'verde');
+  assert.match(c.problemas[0].texto, /Corrigindo o lançamento já gravado/);
+  m.time = 'C6B';
+  c = L.conferir(m, base, {});
+  assert.ok(!c.problemas.some(p => /já está como ausente/.test(p.texto)), 'não acusa a própria pessoa do lançamento original');
+  base = L.gravar(base, m);
+  assert.equal(base.fechamentos['2026-09-29|C5B'], undefined, 'o original sai');
+  assert.equal(base.fechamentos['2026-09-29|C6B'].pessoas[0].matricula, '1000102');
+  assert.equal(Object.keys(base.fechamentos).length, 6, 'não duplica');
 });
