@@ -1,0 +1,19 @@
+{
+  "name": "padronizador-c3b",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Padronizador Inteligente de Dados C3B: lê planilhas quaisquer e gera o Pacote Oficial de Bases C3B em Excel.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:rapido": "node --test tests/0[1-5]*.test.js",
+    "relatorio": "node scripts/relatorio-testes.js",
+    "vendor": "node scripts/copiar-vendor.js",
+    "bridge": "node bridge/server.js",
+    "fixtures": "node tests/fixtures/gerar-fixtures.js && node tests/fixtures/gerar-matriz-byd.js"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0",
+    "jszip": "3.10.2"
+  }
+}

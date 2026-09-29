@@ -1,0 +1,89 @@
+[29/09/2026, 15:35:09] ~ Lider Sete: *Absenteísmo C7B 29/09/2026*
+
+Total de pessoas: 46
+Total presente: 45
+Ausentes: 1
+
+Nome: Gustavo Exemplo da Silva Ribeiro
+ID: 1000101
+Motivo: Atestado médico
+ [29/09/2026, 15:44:59] Lider Tres: *Boa tarde*
+*Absenteísmo C3-B*
+*29/09/2026*
+*2° turno*
+
+*Previstas: 40*
+*Presentes: 40*
+*Ausentes:0*
+ [29/09/2026, 15:45:08] ~ Lider Cinco: *Boa tarde*
+*Absenteísmo C5-
+*29/09/2026*
+*2° turno*
+
+*Previstas: 16*
+*Presentes: 15*
+
+Nome: Anselmo martins Teste 
+Matrícula: 1000102
+Motivo : Atraso roteiro
+ [29/09/2026, 15:46:21] ~ Lider Um 😎⚽: *Boa tarde!*
+*29/09/2026*
+*C1-B*
+
+*Quantidade total = 29*
+*Quantidade atestado = 0*
+*Quantidade atraso roteiro = 1*
+*Atraso motivo pessoal = 0*
+*Sem justificativa = 3*
+*Afastamento por INSS = 0*
+*Turno ADM = 0*
+*Total presente = 25*
+
+*Nome: Cristiano Exemplo*
+*Matrícula: 1000103*
+*Motivo: Férias*
+
+*Nome Alisson Teste*
+*Matrícula: 1000104*
+*Motivo: Roteiro 234 atrasado* 
+
+*Nome: Julio Modelo*
+*Matrícula: 1000105*
+*Motivo: Sem justificativa até o momento.*
+
+*Nome: Wilton Exemplo*
+*Matrícula: 1000106*
+*Motivo: Sem justificativa até o momento*
+
+*Nome: Emanuel Teste*
+*Matrícula: 1000107*
+*Motivo: Sem justificativa até o momento.*
+ [29/09/2026, 15:48:35] ~ ~Lider Dois: Boa tarde!
+*Absenteísmo C2B*
+ 
+  *29/09/2026*
+
+Total de pessoas: 30
+Total presente: 29
+Ausentes: 01
+
+Nome: Jairo Exemplo 
+Matrícula: 1000108
+Motivo: Atestado médico
+ [29/09/2026, 15:51:08] ~ Lider Quatro: ABSENTEÍSMO C04 B
+Data: 29/09/2026
+
+TOTAL DE  COLABORADORES: 29
+
+•Presentes: 30
+•Ausentes: 01
+
+ATESTADO MÉDICO: 
+
+
+ATRASOS: Eliane dos Exemplo 
+Matrícula: 1000109 
+
+•Sem Atraso
+
+OUTROS MOTIVOS DE AUSÊNCIA:

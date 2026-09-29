@@ -10,7 +10,7 @@ const COLADO = fs.readFileSync(path.join(__dirname, 'colado-do-grupo.txt'), 'utf
 
 test('texto colado do grupo vira 4 mensagens, uma por time', () => {
   const ms = L.lerMensagens(COLADO, { ano: 2026 });
-  assert.deepEqual(ms.map(m => m.time), ['SUB MONTAGEM TURNO B', 'C5', 'C7B', 'C1B']);
+  assert.deepEqual(ms.map(m => m.time), ['SUB MONTAGEM TURNO B', 'C5B', 'C7B', 'C1B']);
   assert.ok(ms.every(m => m.data === '2026-09-24'));
   assert.deepEqual(ms.map(m => L.conferir(m).status), ['amarelo', 'amarelo', 'verde', 'verde']);
 });
@@ -44,7 +44,7 @@ test('mensagem sem data usa a data do WhatsApp e avisa', () => {
 test('cópia pelo celular (formato "24/09/2026 16:58 - Nome:") também separa as mensagens', () => {
   const t = COLADO.replace(/ ?\[(\d\d\/\d\d\/\d{4}), (\d\d:\d\d):\d\d\] ~Lider Um: /g, '$1 $2 - Lider Um: ');
   const ms = L.lerMensagens(t, { ano: 2026 });
-  assert.deepEqual(ms.map(m => m.time), ['SUB MONTAGEM TURNO B', 'C5', 'C7B', 'C1B']);
+  assert.deepEqual(ms.map(m => m.time), ['SUB MONTAGEM TURNO B', 'C5B', 'C7B', 'C1B']);
 });
 
 test('nome do time digitado é padronizado', () => {

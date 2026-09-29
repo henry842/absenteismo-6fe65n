@@ -25,6 +25,7 @@
     [/sem justific|injustific|nao justific|falta sem|^faltas?$/, 'Sem justificativa'],
     [/atest|medic|consulta|declaracao/, 'Atestado médico'],
     [/\badm\b|administrativ/, 'Turno ADM'],
+    [/^outros?\b/, 'Outros'],   // "Outros – doação de sangue": o líder escolheu Outros e explicou
   ];
 
   // Minúsculas, sem acento, espaços simples.
@@ -58,7 +59,7 @@
       .replace(/[‎‏‪-‮﻿]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^[-–•·]\s+/, '');
+      .replace(/^[-–•·▪►➤]\s*(?=[^\d\s])|^[-–•·]\s+/, '');
   }
 
   function nomeBonito(s) {
@@ -134,7 +135,18 @@
   function pareceNome(linha) {
     const t = linha.replace(/[\s\-–:|,.]+$/, '').trim();
     if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'. ]+$/.test(t) || t.length > 70) return null;
+    // "Sem atraso", "Nenhum ausente", "Atestado médico" não são nomes
+    if (/^(sem|nenhum|nenhuma|nao|ninguem|zero|ok|obs|total|todos|todas|quantidade)\b/.test(dobrar(t)) || normalizarMotivo(t).reconhecido) return null;
     return t.split(' ').length >= 2 ? t : null;
+  }
+
+  // Cabeçalho de seção por motivo: "ATESTADO MÉDICO:", "ATRASOS: Fulano", "OUTROS MOTIVOS DE AUSÊNCIA:".
+  // As pessoas embaixo (sem "Motivo:") ficam com esse motivo.
+  function secaoMotivo(chave, apelidos) {
+    if (/^(nome|matricula|motivo|justificativa|data|dia|turno|time|equipe|setor|obs|observacao)\b/.test(chave)) return null;
+    if (/^outros?( motivos?)?\b/.test(chave)) return { motivo: 'Outros', reconhecido: true };
+    const n = normalizarMotivo(chave, apelidos);
+    return n.reconhecido ? n : null;
   }
 
   function campoContagem(chave) {
@@ -168,8 +180,12 @@
     let pessoa = null;
     let nomeSolto = null; // nome sem "Nome:", esperando a linha do ID
 
+    const comSecao = p => {
+      if (!p.motivoOriginal && cur.secao) Object.assign(p, { motivoOriginal: cur.secao.original, motivo: cur.secao.motivo, motivoReconhecido: true, motivoDaSecao: true });
+      return p;
+    };
     const fecharPessoa = () => {
-      if (pessoa && (pessoa.nome || pessoa.matricula || pessoa.motivoOriginal)) cur.pessoas.push(pessoa);
+      if (pessoa && (pessoa.nome || pessoa.matricula || pessoa.motivoOriginal)) cur.pessoas.push(comSecao(pessoa));
       pessoa = null;
     };
     const fecharMensagem = () => {
@@ -200,10 +216,12 @@
       // "ID 1234567" (sem os dois pontos)
       const idSolto = !kv && linha.match(/^(?:id|matr[ií]cula|matr|mat|re|registro|crach[aá])\.?\s+(\d{4,})$/i);
 
+      // "Nome Fulano de Tal" (esqueceram os dois pontos)
+      const nomeSemDoisPontos = !kv && linha.match(/^nome\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'. ]+)$/i);
       // Campos da pessoa
-      if (kv && /^nome( completo)?$|^colaborador(a)?$|^funcionari/.test(chave)) {
+      if (nomeSemDoisPontos || (kv && /^nome( completo)?$|^colaborador(a)?$|^funcionari/.test(chave))) {
         fecharPessoa();
-        pessoaAtual().nome = nomeBonito(valor);
+        pessoaAtual().nome = nomeBonito(nomeSemDoisPontos ? nomeSemDoisPontos[1] : valor);
         cur.texto.push(original);
         continue;
       }
@@ -245,15 +263,30 @@
         }
       }
 
+      // Seção por motivo: "ATESTADO MÉDICO:" (nomes embaixo) ou "ATRASOS: Fulano de Tal [- 1234567]"
+      const secao = kv && !/^\d{1,4}\b/.test(valor) && secaoMotivo(chave, apelidos);
+      if (secao) {
+        fecharPessoa(); nomeSolto = null;
+        cur.secao = { motivo: secao.motivo, original: kv[1].trim() };
+        const v = valor.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'. ]*?)\s*(?:[-–|,]?\s*(\d{5,}))?\s*[-–|,.]*$/);
+        if (v && !/^(sem|nenhum|nenhuma|nao|ninguem|zero)\b/.test(dobrar(v[1]))) {
+          const p = pessoaAtual();
+          p.nome = nomeBonito(v[1]);
+          if (v[2]) p.matricula = v[2];
+        }
+        cur.texto.push(original);
+        continue;
+      }
+
       // Pessoa numa linha só: "João Silva - 1234567 - Atestado"
       const umaLinha = !kv && linha.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .']+?)\s*[-–|]\s*(\d{5,})\s*(?:[-–|]\s*(.+))?$/);
       if (umaLinha) {
         fecharPessoa();
         const n = normalizarMotivo(umaLinha[3] || '', apelidos);
-        cur.pessoas.push({
+        cur.pessoas.push(comSecao({
           nome: nomeBonito(umaLinha[1]), matricula: umaLinha[2],
           motivoOriginal: umaLinha[3] || '', motivo: n.motivo, motivoReconhecido: n.reconhecido,
-        });
+        }));
         cur.texto.push(original);
         continue;
       }
@@ -290,7 +323,23 @@
     for (const m of mensagens) {
       m.texto = m.texto.join('\n');
       if (!m.data && m.dataWhats) { m.data = m.dataWhats; m.dataDoWhats = true; }
+      delete m.secao;
       completarNumeros(m);
+    }
+    completarTimes(mensagens, (opcoes && opcoes.times) || []);
+    return mensagens;
+  }
+
+  // "C5-" (faltou a letra): se só existe um C5x nos times cadastrados, é ele. Senão, se todos os outros times
+  // colados juntos têm a mesma letra (C1B, C2B, C7B…), sugere essa letra — e pede para conferir.
+  function completarTimes(mensagens, times) {
+    const letras = [...new Set(mensagens.filter(m => !m.timeIncompleto && /^C\d+[A-Z]$/.test(m.time || '')).map(m => m.time.slice(-1)))];
+    for (const m of mensagens) {
+      if (!m.timeIncompleto || !/^C\d+$/.test(m.time || '')) continue;
+      const daLista = times.filter(t => new RegExp(`^${m.time}[A-Z]$`).test(t));
+      if (daLista.length === 1) m.timeCompletado = { de: m.time, para: daLista[0], fonte: 'lista' };
+      else if (!daLista.length && letras.length === 1) m.timeCompletado = { de: m.time, para: m.time + letras[0], fonte: 'lote' };
+      if (m.timeCompletado) { m.time = m.timeCompletado.para; m.timeIncompleto = false; }
     }
     return mensagens;
   }
@@ -319,6 +368,8 @@
 
     if (!m.time) add('vermelho', 'Não achei o time na mensagem.');
     else if (m.timeIncompleto) add('amarelo', `Time veio incompleto ("${m.timeBruto}"). Confira a letra do time.`);
+    else if (m.timeCompletado && m.timeCompletado.fonte === 'lista') add('info', `Time veio "${m.timeCompletado.de}-" sem a letra; entendi ${m.time} (único ${m.timeCompletado.de} da lista de times).`);
+    else if (m.timeCompletado) add('amarelo', `Time veio "${m.timeCompletado.de}-" sem a letra; pelos outros times entendi ${m.time}. Confira.`);
     else if (times.length && !times.includes(m.time)) add('amarelo', `O time ${m.time} não está na lista de times dos Ajustes.`);
 
     if (!m.data) add('amarelo', 'A mensagem não tem data. Confira a data.');
@@ -327,10 +378,22 @@
     if (m.efetivo == null) add('vermelho', 'Falta o total de pessoas (efetivo).');
     if (m.presentes == null) add('vermelho', 'Falta o número de presentes.');
 
-    if (m.efetivo != null && m.presentes != null) {
-      if (m.presentes > m.efetivo) add('vermelho', `Presentes (${m.presentes}) é maior que o total (${m.efetivo}).`);
+    if (m.efetivo != null && m.presentes != null && m.presentes > m.efetivo) {
+      // Um dos dois números foi digitado errado; se os ausentes batem com a lista, dá para dizer quais seriam os certos
+      const n = m.ausentesInformado ? m.ausentes : m.pessoas.length;
+      const dica = n && n === m.pessoas.length
+        ? ` Os ausentes (${n}) batem com a lista de nomes: o total deveria ser ${m.presentes + n} ou os presentes ${m.efetivo - n}. Corrija o número errado.`
+        : '';
+      add('vermelho', `Presentes (${m.presentes}) é maior que o total (${m.efetivo}).${dica}`);
+    } else if (m.efetivo != null && m.presentes != null) {
       const falta = m.efetivo - m.presentes;
-      const listaBate = falta === m.pessoas.length;
+      // Líder que não conta quem está de férias no total: a lista tem essas pessoas "a mais"
+      const naoContam = (config && config.naoContam) || ['Férias'];
+      const foraDoTotal = m.pessoas.filter(p => naoContam.includes(p.motivo));
+      const bateSemEles = foraDoTotal.length > 0 && falta === m.pessoas.length - foraDoTotal.length;
+      const listaBate = falta === m.pessoas.length || bateSemEles;
+      if (bateSemEles)
+        add('info', `A lista tem ${m.pessoas.length} nomes; ${foraDoTotal.map(p => `${p.nome || p.matricula} (${p.motivo})`).join(', ')} não ${foraDoTotal.length > 1 ? 'entraram' : 'entrou'} no total de pessoas. Os outros ${falta} batem com a conta.`);
       if (m.ausentesInformado && falta !== m.ausentes) {
         const rotulo = m.ausentesRotulo || 'Ausentes';
         // Se a conta e a lista de nomes concordam, provavelmente só a linha "Faltas" foi digitada errada
@@ -361,6 +424,7 @@
       if (!p.nome) add('amarelo', `Matrícula ${p.matricula || '?'}: sem nome.`);
       if (!p.motivoOriginal) add('amarelo', `${quem}: sem motivo.`);
       else if (!p.motivoReconhecido) add('amarelo', `${quem}: motivo "${p.motivoOriginal}" não reconhecido (ficou como Outros).`);
+      else if (/^atras(os?|ad[oa]s?)$/.test(dobrar(p.motivoOriginal))) add('amarelo', `${quem}: veio só "${p.motivoOriginal}"; entendi ${p.motivo}. Se foi atraso de roteiro, corrija o motivo.`);
     });
 
     if (base && m.time && m.data) {
@@ -673,6 +737,50 @@
     ].join('\n');
   }
 
+  // Mensagem para mandar UMA VEZ no grupo: o padrão completo, com exemplo preenchido e as regras.
+  // O exemplo é lido pelo sistema sem nenhum aviso (testado).
+  function exemploPadrao(data, time) {
+    return [
+      `*Absenteísmo ${time || 'C1B'} ${dataBR(data)}*`,
+      '*Turno:* 2º turno',
+      '',
+      '*Total de pessoas:* 30',
+      '*Presentes:* 28',
+      '*Ausentes:* 2',
+      '',
+      '*Nome:* Fulano de Tal',
+      '*Matrícula:* 1234567',
+      '*Motivo:* Atestado médico',
+      '',
+      '*Nome:* Ciclano da Silva',
+      '*Matrícula:* 7654321',
+      '*Motivo:* Atraso roteiro',
+    ].join('\n');
+  }
+  function textoOrientacao(data, time) {
+    return [
+      '*📋 PADRÃO DA MENSAGEM DE ABSENTEÍSMO*',
+      'Pessoal, a partir de hoje mandem o absenteísmo *sempre neste formato*, uma mensagem por time. Assim o sistema lê sozinho e não precisa conferir na mão.',
+      '',
+      '*Exemplo:*',
+      '',
+      exemploPadrao(data, time),
+      '',
+      '*Regras:*',
+      '1️⃣ *Time completo, com a letra:* C1B, C5B, C4B (não "C5-", "C04 B").',
+      '2️⃣ *Data* com dia/mês/ano: 29/09/2026.',
+      '3️⃣ *Total de pessoas* = todo o quadro do time, *inclusive quem está de férias ou afastado*.',
+      '4️⃣ *Ausentes* = Total − Presentes. Tem que dar o mesmo número de nomes da lista.',
+      '5️⃣ Para *cada* ausente: *Nome*, *Matrícula* e *Motivo*, uma linha cada, e uma linha em branco entre as pessoas.',
+      '6️⃣ *Motivo* — use um destes:',
+      ...MOTIVOS.map(m => `   • ${m}${m === 'Outros' ? ' (explique ao lado: "Outros – doação de sangue")' : ''}`),
+      '7️⃣ Sem ausentes: mande *Ausentes: 0* e não coloque nomes.',
+      '8️⃣ Não precisa mandar contagem por motivo (atestado = 1, roteiro = 0…): o sistema conta sozinho pela lista.',
+      '',
+      '_Pode copiar o exemplo, trocar os números e os nomes e mandar._ 🙏',
+    ].join('\n');
+  }
+
   // Números de um período (de/até inclusive, datas ISO).
   function resumoPeriodo(base, de, ate) {
     const naoContam = (base.config && base.config.naoContam) || [];
@@ -789,7 +897,7 @@
     lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
     resumoDoDia, textoWhatsApp, historicoPessoa, csvAusencias, csvFechamentos, dataBR, pct, nomeBonito,
     DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa, sanearBase,
-    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, resumoPeriodo, alertasReincidencia, textoPeriodo,
+    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Leitor;

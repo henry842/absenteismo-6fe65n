@@ -1,0 +1,14 @@
+node_modules/
+tests/saida/
+
+# Matrizes reais com dados pessoais não entram no repositório (use C3B_MATRIZ_REAL nos testes)
+*COPIA-TRABALHO*
+
+# O .gitignore da raiz bloqueia *.json, *.xlsx e *.csv (dados reais do app de absenteísmo).
+# Aqui voltam só os arquivos do projeto e as planilhas de teste SINTÉTICAS (nomes fictícios).
+!package.json
+!package-lock.json
+!tests/fixtures/*_sintetico.xlsx
+!tests/fixtures/*_sintetica.xlsx
+!tests/fixtures/Funcionarios_C3_nao_padronizado.xlsx
+!tests/fixtures/funcionarios_windows1252.csv
