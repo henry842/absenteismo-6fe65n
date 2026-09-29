@@ -285,7 +285,7 @@ if (window.top !== window.self) {
   function previaImportacao() {
     const texto = $('#entrada').value;
     $('#contagemCar').textContent = `${texto.length.toLocaleString('pt-BR')} caracteres`;
-    const lidas = texto.trim() ? L.lerMensagens(texto, { ano: new Date().getFullYear(), apelidos: base.config.apelidos }) : [];
+    const lidas = texto.trim() ? L.lerMensagens(texto, { ano: new Date().getFullYear(), apelidos: base.config.apelidos, times: base.config.times }) : [];
     const exemplo = texto.trim() === textoExemplo().trim();
     const pend = lidas.filter(m => exemplo || L.conferir(m, base, base.config).status !== 'verde').length;
     const total = lidas.reduce((s, m) => s + (m.efetivo || 0), 0);
@@ -305,7 +305,7 @@ if (window.top !== window.self) {
 
   $('#btnLer').addEventListener('click', () => {
     const texto = $('#entrada').value;
-    const lidas = L.lerMensagens(texto, { ano: new Date().getFullYear(), apelidos: base.config.apelidos });
+    const lidas = L.lerMensagens(texto, { ano: new Date().getFullYear(), apelidos: base.config.apelidos, times: base.config.times });
     if (!lidas.length) {
       $('#resultadoLeitura').innerHTML = `<div class="caixa-aviso info" style="margin-top:14px">${ic('info')}<span>Não encontrei nenhuma mensagem de absenteísmo nesse texto.</span></div>`;
       return;
@@ -876,6 +876,7 @@ if (window.top !== window.self) {
   // ---------- Ajustes ----------
   function desenharModelo() {
     $('#previaModelo').textContent = L.textoModelo(hoje(), $('#modeloTime').value);
+    $('#previaOrientacao').textContent = L.textoOrientacao(hoje(), $('#modeloTime').value);
   }
   function contarTimes() {
     const n = $('#cfgTimes').value.split(/[\n;]+/).map(L.normalizarTime).filter(Boolean).length;
@@ -928,6 +929,8 @@ if (window.top !== window.self) {
     salvar(); aviso('Área e meta salvas.');
   });
   $('#modeloTime').addEventListener('change', desenharModelo);
+  $('#btnCopiarOrientacao').addEventListener('click', async () =>
+    aviso(await copiar(L.textoOrientacao(hoje(), $('#modeloTime').value)) ? 'Padrão completo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
   $('#btnCopiarModelo').addEventListener('click', async () =>
     aviso(await copiar($('#previaModelo').textContent) ? 'Modelo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
 

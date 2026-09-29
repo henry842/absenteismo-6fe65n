@@ -87,8 +87,9 @@ test('C5 e C7B colados juntos viram duas mensagens', () => {
   assert.equal(ms.length, 2);
   const [c5, c7] = ms;
 
-  assert.equal(c5.time, 'C5');
-  assert.equal(c5.timeIncompleto, true);
+  // "C5-": completado pela letra do outro time colado junto (C7B), pedindo para conferir
+  assert.equal(c5.time, 'C5B');
+  assert.deepEqual(c5.timeCompletado, { de: 'C5', para: 'C5B', fonte: 'lote' });
   assert.equal(c5.turno, '2º turno');
   assert.equal(c5.data, '2026-09-24');
   assert.equal(c5.efetivo, 15);
@@ -99,7 +100,7 @@ test('C5 e C7B colados juntos viram duas mensagens', () => {
   assert.ok(c5.pessoas.every(p => p.motivo === 'Atestado médico'));
   const conf5 = L.conferir(c5);
   assert.equal(conf5.status, 'amarelo');
-  assert.match(conf5.problemas[0].texto, /incompleto/);
+  assert.match(conf5.problemas[0].texto, /"C5-" sem a letra; pelos outros times entendi C5B\. Confira/);
 
   assert.equal(c7.time, 'C7B');
   assert.equal(c7.data, '2026-09-24');
@@ -114,7 +115,7 @@ test('fechamento do dia com os 3 times: 90 / 82 / 8 = 8,9%', () => {
   let base = L.baseVazia();
   for (const m of L.lerMensagens(C1B + '\n\n' + C5_E_C7B, { ano: 2026 })) base = L.gravar(base, m);
   const r = L.resumoDoDia(base, '2026-09-24');
-  assert.deepEqual(r.recebidos, ['C1B', 'C5', 'C7B']);
+  assert.deepEqual(r.recebidos, ['C1B', 'C5B', 'C7B']);
   assert.equal(r.efetivo, 90);
   assert.equal(r.presentes, 82);
   assert.equal(r.ausentes, 8);

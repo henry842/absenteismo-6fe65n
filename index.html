@@ -767,9 +767,11 @@
         </div>
         <div class="linha" style="margin-bottom:12px">
           <label style="display:flex;align-items:center;gap:10px;font-weight:600">Time <select id="modeloTime" style="width:auto;min-width:220px"></select></label>
-          <button class="botao sec" id="btnCopiarModelo"><i data-i="copy"></i>Copiar modelo</button>
+          <button class="botao" id="btnCopiarOrientacao"><i data-i="copy"></i>Copiar padrão completo (1ª vez)</button>
+          <button class="botao sec" id="btnCopiarModelo"><i data-i="copy"></i>Copiar modelo em branco</button>
         </div>
-        <div class="previa"><b>Prévia da mensagem</b><pre id="previaModelo"></pre></div>
+        <div class="previa"><b>Modelo em branco (para o líder preencher todo dia)</b><pre id="previaModelo"></pre></div>
+        <details class="previa" style="margin-top:10px"><summary><b>Padrão completo com regras (mande uma vez no grupo)</b></summary><pre id="previaOrientacao"></pre></details>
       </div>
     </div>
     <div class="grade-2">
