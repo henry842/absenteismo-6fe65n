@@ -333,6 +333,11 @@
         COVERAGE_RULES: ['rule_id', 'descricao', 'valor'],
         SYNC_SETTINGS: ['schema', 'base_id', 'master_mode', 'descricao'],
         DECISOES: ['decision_id', 'tipo', 'detalhe', 'decidido_por', 'decidido_em'],
+        // Camada de Ajustes Manuais (mesmas colunas de features/ajustes.js): sobrevive a cada releitura da Matriz
+        AJUSTES_MANUAIS: ['override_id', 'employee_id', 'operation_id', 'entity_type', 'field', 'action', 'original_value', 'new_value', 'reason', 'created_by', 'created_at', 'active',
+          'scope', 'source_sheet', 'closed_at', 'closed_by', 'close_reason', 'kept_source'],
+        LOG_AJUSTES: ['log_id', 'override_id', 'evento', 'employee_id', 'operation_id', 'field', 'de', 'para', 'por', 'em', 'motivo', 'scope'],
+        HISTORICO_OFICIAL: ['event_id', 'override_id', 'employee_id', 'operation_id', 'field', 'event_type', 'previous_value', 'new_value', 'event_date', 'responsible', 'reason', 'status_matriz', 'alvo_matriz', 'created_at'],
       },
     },
   ];

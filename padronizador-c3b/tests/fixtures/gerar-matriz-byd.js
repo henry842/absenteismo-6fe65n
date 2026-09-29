@@ -4,6 +4,8 @@
 // FFFFFF00, cor de tema 0) e as formas ○ △ gravadas em xl/drawings/drawing1.xml como no arquivo real
 // (twoCellAnchor + <xdr:sp> + <a:prstGeom prst="ellipse|triangle">), inclusive elipses duplicadas, legenda e retângulos.
 // Uso: node tests/fixtures/gerar-matriz-byd.js
+// Variante (testes de reconciliação): gerar({ saida, marcadoresL: [[pessoa, operação], ...] }) acrescenta marcadores 1
+// — simula a Matriz oficial atualizada depois de um ajuste manual.
 const ExcelJS = require('exceljs'), JSZip = require('jszip'), fs = require('fs'), path = require('path');
 const SAIDA = path.join(__dirname, 'Matriz_BYD_estrutura_real_sintetica.xlsx');
 
@@ -53,7 +55,9 @@ const FORMAS = [
   E(10, 2, { name: 'Elipse perdida' }),
 ];
 
-async function gerar() {
+async function gerar({ saida = SAIDA, marcadoresL = [] } = {}) {
+  const blocos = BLOCOS.map(([i, j, b]) => [i, j, marcadoresL.some(([mi, mj]) => mi === i && mj === j) ? { ...b, L: true, fill: b.fill || 'FF92D050' } : b])
+    .concat(marcadoresL.filter(([mi, mj]) => !BLOCOS.some(([i, j]) => i === mi && j === mj)).map(([i, j]) => [i, j, { L: true, fill: 'FF92D050' }]));
   const wb = new ExcelJS.Workbook();
   // HA2H: mesma equipe, com a grafia de um sobrenome trocada (como acontece no arquivo real)
   const GRAFIA_HA2H = { 4: 'PEDRO EXEMPLO ALVSE' };
@@ -78,7 +82,7 @@ async function gerar() {
         for (let r = linha(j); r < linha(j) + 4; r++) for (let c = col(i) + 1; c < col(i) + 4; c++) ws.getCell(r, c).fill = TEMA_BRANCO;
       });
     });
-    for (const [i, j, b] of BLOCOS) {
+    for (const [i, j, b] of blocos) {
       if (b.fill) for (let r = linha(j); r < linha(j) + 4; r++) for (let c = col(i) + 1; c < col(i) + 4; c++) ws.getCell(r, c).fill = cor(b.fill);
       if (b.L) { const m = ws.getCell(linha(j) + 2, col(i) + 2); m.value = 1; m.font = { color: { theme: 0 } }; }
       if (b.datas) ws.getCell(linha(j), col(i)).value = b.datas;
@@ -87,7 +91,7 @@ async function gerar() {
     ws.getCell(RESUMO, 1).value = 'Número L proficiente de cada operador 各作业员L熟练数量'; ws.mergeCells(RESUMO, 1, RESUMO, 2);
     PESSOAS.forEach((_, i) => {
       const refs = OPS.map((__, j) => `${letra(col(i) + 2)}${linha(j) + 2}`);
-      let total = BLOCOS.filter(([pi, , b]) => pi === i && b.L).length;
+      let total = blocos.filter(([pi, , b]) => pi === i && b.L).length;
       if (i === 3 && nomeAba === 'SA6H') total = 3;   // resultado salvo desatualizado (como no arquivo real): deve gerar aviso, sem mudar a leitura
       ws.getCell(RESUMO, col(i)).value = { formula: `SUM(${refs.join('+')})`, result: total };
     });
@@ -117,8 +121,9 @@ async function gerar() {
   const ct = await zip.file('[Content_Types].xml').async('string');
   zip.file('[Content_Types].xml', ct.replace('</Types>', '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>'));
   bytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-  fs.writeFileSync(SAIDA, bytes);
-  console.log('gerado', SAIDA, bytes.length, 'bytes');
+  fs.writeFileSync(saida, bytes);
+  console.log('gerado', saida, bytes.length, 'bytes');
+  return saida;
 }
 
 function drawingXml() {

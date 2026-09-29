@@ -2,8 +2,8 @@
 // Não depende do HTML: roda no navegador (window.C3B.servicos) e no Node (require('./src/servicos.js')).
 (typeof module === 'object' ? require('./modulo') : C3BModulo)('servicos',
   ['core/util', 'core/dicionario', 'core/aliases', 'core/mapeamento', 'core/perfis', 'core/normalizar', 'core/validar', 'core/qualidade',
-    'core/conflitos', 'core/historico', 'excel/leitor', 'excel/escritor', 'features/instalacao', 'features/importacao', 'features/cadastro', 'features/relatorios', 'storage/adaptadores', 'excel/byd_drawings', 'excel/byd_matriz', 'excel/byd_base', 'core/pessoas'],
-  (U, D, AL, M, PF, N, V, Q, CF, H, L, W, INST, IMP, CAD, REL, ST, BDR, BYM, BYB, PSS) => {
+    'core/conflitos', 'core/historico', 'excel/leitor', 'excel/escritor', 'features/instalacao', 'features/importacao', 'features/cadastro', 'features/relatorios', 'storage/adaptadores', 'excel/byd_drawings', 'excel/byd_matriz', 'excel/byd_base', 'core/pessoas', 'features/ajustes'],
+  (U, D, AL, M, PF, N, V, Q, CF, H, L, W, INST, IMP, CAD, REL, ST, BDR, BYM, BYB, PSS, AJ) => {
   'use strict';
   return {
     // leitura e interpretação
@@ -34,7 +34,9 @@
     // Matriz de habilidades BYD (BYD_SKILL_MATRIX_V1): nível, designação (○ △ em formas do Excel), cor e origem
     byd: { detectar: BYM.ehMatrizBYD, extrair: (bytes, opcoes) => BYM.extrairMatrizBYD(bytes, opcoes), lerFormas: (bytes, opcoes) => BDR.lerFormas(bytes, opcoes),
       gerarBaseOperacional: (r, opcoes) => BYB.gerarBaseOperacional(r, opcoes), verificarBaseOperacional: (bytes, r, opcoes) => BYB.verificarBaseOperacional(bytes, r, opcoes), ehAtual: BYM.ehAtual, CONFIG: BYM.CONFIG,
-      lerBaseOperacional: (bytes, opcoes) => BYB.lerBaseOperacional(bytes, opcoes), PERFIL: BYM.PERFIL },
+      lerBaseOperacional: (bytes, opcoes) => BYB.lerBaseOperacional(bytes, opcoes), lerAjustesDaBase: (bytes, opcoes) => BYB.lerAjustesDaBase(bytes, opcoes), PERFIL: BYM.PERFIL },
+    // Camada de Ajustes Manuais: fonte (Matriz) → ajustes → valor efetivo (nunca edita a base importada)
+    ajustes: AJ,
     // importação guiada e cadastro
     importacao: IMP, cadastro: CAD, pessoas: PSS, relatorios: REL, armazenamento: ST, dicionario: D, aliases: AL, perfis: PF,
     createPackage: (meta, usuario) => INST.criarPacote(meta, usuario),

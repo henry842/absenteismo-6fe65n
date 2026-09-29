@@ -168,6 +168,42 @@ O total de L lido confere com a fórmula da própria planilha em HA2H, SA6H e SC
 e a fórmula referencia exatamente essas 6 células, mas o resultado salvo no arquivo é 4 (planilha salva sem recalcular);
 isso aparece como pendência `TOTAL_L_DIFERENTE`.
 
+## Ajustes Manuais C3B (edição por pessoa)
+
+A Base Operacional **não é editada à mão** e a extração da Matriz nunca é alterada. Toda edição feita no C3B vira um
+**ajuste manual** (override), aplicado por cima da fonte:
+
+```
+MATRIZ ORIGINAL → base importada (extração) → AJUSTES MANUAIS → VALOR EFETIVO → C3B calcula KPIs
+```
+
+- **Onde:** painel Matriz BYD › *Pessoas* › **Abrir perfil** (ou clique no nome na tabela de habilidades). O perfil mostra os dados da
+  pessoa (matrícula, função, turno, status, nome, observação) e um cartão por habilidade (modelo • estação, nível, designação, origem,
+  última atualização) com **Corrigir**, **Remover do C3B**, **Ver na Matriz** e **Ver histórico**; no topo: *Editar pessoa*,
+  *+ Adicionar habilidade*, *Alterar designação*, *Adicionar observação*, *Histórico de alterações*.
+- **Cada ajuste** guarda `override_id` (OVR-00001…), pessoa, operação, campo, ação (`UPDATE` / `ADD` / `REMOVE`), valor original, novo
+  valor, **motivo (obrigatório)**, responsável e data. Um ajuste ativo por pessoa/operação/campo: o anterior fica como `SUBSTITUIDO`.
+- **Remover não apaga:** "Remover do C3B" cria `REMOVE` (ex.: original `L` → `SEM_REGISTRO`); a linha continua na Base com a fonte
+  original, o ajuste e o valor efetivo (`desconsiderado = true`) e sai dos KPIs. O diálogo oferece *Desconsiderar somente no C3B* ou
+  *Corrigir também na Matriz oficial*.
+- **Desfazer:** todo ajuste pode ser desfeito (fica inativo, `DESFEITO`, e volta a valer o valor anterior); tudo vai para `LOG_AJUSTES`.
+- **Dois tipos:** 🟢 *Ajuste local* (só Base Operacional/C3B — ex.: nome escrito errado) e 🔵 *Alteração oficial* (nível, designação ou
+  remoção — ex.: `I → L`): além do ajuste, vira evento em `HISTORICO_OFICIAL` com status `PENDENTE_NA_MATRIZ` e a célula/bloco a mudar
+  na Matriz oficial. Desfazer uma alteração oficial marca o evento `ESTORNADO` e registra um `ESTORNO`.
+- **Sobrevive à atualização da Matriz:** os ajustes ficam fora da extração (em `07_Configuracoes` › `AJUSTES_MANUAIS` / `LOG_AJUSTES` /
+  `HISTORICO_OFICIAL` e nas abas de mesmo nome da Base Operacional) e são reaplicados a cada leitura. A reconciliação compara com a Matriz
+  relida: se ela já diz o mesmo que o ajuste, aparece *"O ajuste manual OVR-00001 não é mais necessário"* com **[Encerrar ajuste]**
+  (volta a valer a Matriz; o evento oficial fica `APLICADO_NA_MATRIZ`) ou **[Manter ajuste]** (não pergunta de novo enquanto a Matriz não
+  mudar). Também avisa quando a Matriz mudou para outro valor (`FONTE_MUDOU`) ou quando a pessoa/operação sumiu (`ORFAO`).
+- **Projeto novo:** "Trazer ajustes de uma Base Operacional anterior" lê as abas de ajustes de uma Base gerada antes.
+- **Base Operacional:** `PESSOAS` e `HABILIDADES_ATUAIS` trazem o valor efetivo e as colunas `source_*` (fonte original),
+  `origem_efetiva` (`MATRIZ` / `MATRIZ+AJUSTE` / `AJUSTE`), `override_ids` e `ultima_atualizacao`; mais `AJUSTES_MANUAIS`, `LOG_AJUSTES`,
+  `HISTORICO_OFICIAL`, `CONFIGURACAO` e `SYNC_STATE`. A conferência depois de gerar compara o valor efetivo e os ajustes preservados.
+- Matrícula informada por ajuste passa a gerar o ID oficial (`EMP-<matrícula>`) em todas as linhas da pessoa; o ID de origem fica em
+  `source_employee_id`. Valores de função/turno/status passam pelo Dicionário; níveis só `i`, `I`, `L`, `U` (i ≠ I).
+- API: `servicos.ajustes` (`criarAjuste`, `aplicar`, `reconciliar`, `encerrar`, `desfazer`, `manter`, `historico`) e
+  `servicos.byd.lerAjustesDaBase`.
+
 ## Schemas (Pacote Oficial de Bases C3B, schema 1.0.0)
 
 | Base | Arquivo | Aba | Chave | master_mode | Obrigatórios |
@@ -249,7 +285,8 @@ installation_id, content_hash, import_batch_id, sync_origin, restored_from) e ab
 | Matriz BYD → bases oficiais 01/03 | **PARTIAL** — a Matriz gera a Base Operacional BYD, mas não alimenta sozinha o Cadastro (01) e a Matriz (03) do pacote: ela não tem matrícula (IDs provisórios) e os modelos EQE/HA2H/SC3H vêm do nome da aba. |
 | Matriz BYD: outras formas | Só `ellipse` (e `flowChartConnector`) e `triangle` são marcadores. Formas em grupo usam a âncora do grupo; `absoluteAnchor` não tem célula e é ignorada. "ASS" (sem regra definida) fica como pendência. |
 | Matriz BYD: arquivo real nos testes | O arquivo real tem nomes de pessoas e não fica no repositório; o teste `08` roda com `C3B_MATRIZ_REAL=<caminho>`. Sem a variável ele aparece como SKIPPED, nunca como PASS. |
-| Duplicidade por similaridade | Só para operações. Pessoas são deduplicadas pela matrícula (repetição = erro; fica a primeira). |
+| Ajustes: escrita na Matriz oficial | **NOT IMPLEMENTED** — a 🔵 alteração oficial não grava no `.xlsx` da Matriz (formas e marcadores ocultos). Fica `PENDENTE_NA_MATRIZ` com o bloco/célula a mudar; quando a Matriz atualizada é relida, a reconciliação oferece encerrar o ajuste e o evento passa a `APLICADO_NA_MATRIZ`. |
+| Duplicidade por similaridade | Operações e pessoas: só sugestão ("possível mesma pessoa"), nada é unido sem confirmação. Pessoas com a mesma matrícula continuam sendo erro (fica a primeira). |
 | Tradução | Rótulos principais em pt e 中文; textos longos de ajuda e mensagens de validação só em português. |
 | Arquivo protegido por senha | Não é aberto (mensagem de erro com orientação). |
 
@@ -268,6 +305,7 @@ real de cada teste).
 | `05-e2e.test.js` | cenário obrigatório de 20 passos (seção 79), em disco real |
 | `06-interface.test.js` | a página aberta via `file://` no Chromium: arquivo real selecionado, abas, cabeçalho, correção de mapeamento, perfil, de/para, validação, confirmação, geração com checklist, backup, diagnóstico, restauração, alias no Dicionário, modo Líder, Nova Implantação, painel da Matriz BYD e Base Operacional; sem erros no console |
 | `07-matriz-byd.test.js` | fixture com a mesma estrutura da Matriz real (`tests/fixtures/gerar-matriz-byd.js`, formas gravadas no drawing): os 10 casos obrigatórios (○ → TITULAR, △ → EM_TREINAMENTO, ○+△ → FUTURO_TITULAR, ○○ sobrepostas → um titular, 1 → L, △ sem 1 → sem L, GREEN, YELLOW, origem da forma, Base Operacional reaberta) + validações, layout, Cadastro, importação e openpyxl |
+| `09-ajustes-manuais.test.js` | edição de pessoa (matrícula → ID oficial em todas as linhas, turno pelo Dicionário), remover sem apagar (fonte preservada, KPIs pelo valor efetivo), adicionar habilidade, corrigir operação (com colisão), validações (motivo, nível, i ≠ I, designação, enum), substituição/desfazer/histórico, alteração oficial → Histórico oficial pendente → estorno, releitura de uma "Matriz v2" gerada na hora (ajuste sobrevive; "não é mais necessário" → encerrar/manter; fonte mudou; órfão), abas da Base Operacional e leitura de volta, persistência em 07_Configuracoes |
 | `08-matriz-byd-real.test.js` | o arquivo de referência real (com `C3B_MATRIZ_REAL`): SA6H C9 = FUTURO_TITULAR (△ E9:E10 + ○ E11), AO46 duplicada = um titular, contagens por aba, L × fórmula da planilha, cores, legenda ignorada, Base Operacional e arquivo original intacto |
 
 ## Critérios de aceite (seção 80)

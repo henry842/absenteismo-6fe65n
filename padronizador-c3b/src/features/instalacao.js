@@ -2,8 +2,8 @@
 // (ler atual → comparar → validar → backup → gravar → reler → verificar → log), diagnóstico de pasta,
 // versões (BACKUP) e restauração.
 (typeof module === 'object' ? require('../modulo') : C3BModulo)('features/instalacao',
-  ['core/util', 'core/dicionario', 'core/ids', 'core/validar', 'core/qualidade', 'core/conflitos', 'excel/escritor'],
-  (U, D, ID, V, Q, CF, W) => {
+  ['core/util', 'core/dicionario', 'core/ids', 'core/validar', 'core/qualidade', 'core/conflitos', 'excel/escritor', 'features/ajustes'],
+  (U, D, ID, V, Q, CF, W, AJ) => {
   'use strict';
 
   const BASES = ['PEOPLE', 'OPERATIONS', 'SKILLS', 'HISTORY', 'TRAINING', 'ATTENDANCE'];
@@ -51,6 +51,7 @@
       COVERAGE_RULES: [{ rule_id: 'CR-001', descricao: 'Mínimo de pessoas L/U por operação ativa', valor: (c.geral || {}).minimo_cobertura || '' }],
       SYNC_SETTINGS: D.SCHEMAS.map(s => ({ schema: s.id, base_id: s.base, master_mode: (c.sync || {})[s.id] || s.master_mode, descricao: s.nome_pt })),
       DECISOES: (c.decisoes || []).map((d, i) => ({ decision_id: d.decision_id || `DEC-${String(i + 1).padStart(5, '0')}`, ...d })),
+      ...AJ.paraLinhas(c.ajustes),
     };
   }
   function abasParaConfig(abas) {
@@ -72,6 +73,7 @@
       contadores,
       sync: Object.fromEntries((abas.SYNC_SETTINGS || []).map(s => [s.schema, s.master_mode])),
       geral,
+      ajustes: AJ.deLinhas(abas),
     };
   }
 

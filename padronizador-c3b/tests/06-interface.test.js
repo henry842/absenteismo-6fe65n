@@ -136,5 +136,29 @@ test('interface: fluxo completo no navegador', { skip: !pw && 'Playwright não i
     await pg.waitForSelector('#bydResultado .banner.ok', { timeout: 60000 });
     assert.match(await pg.textContent('#bydResultado'), /Relido do destino e conferido/);
   });
+  await t.test('Perfil da pessoa: remover do C3B vira ajuste manual, com histórico e desfazer', async () => {
+    await pg.fill('#bydPessoaTexto', 'JOÃO'); await pg.press('#bydPessoaTexto', 'Tab');
+    await pg.waitForFunction(() => document.querySelectorAll('#bydPessoas tbody tr').length === 1);
+    await pg.click('#bydPessoas .bydPerfil');
+    await pg.waitForSelector('#modalGenericoBox [data-hab="remover"]');
+    const antes = await pg.$$eval('#modalGenericoBox [data-hab="remover"]', e => e.length);
+    await pg.click('#modalGenericoBox [data-hab="remover"]');
+    assert.match(await pg.textContent('#perfilForm'), /Desconsiderar somente no C3B/);
+    await pg.click('#modalGenericoBox #fSalvar');
+    await pg.waitForFunction(() => /motivo/i.test(document.querySelector('#toast').textContent));   // motivo obrigatório
+    await pg.fill('#fMotivo', 'Registro incorreto');
+    await pg.click('#modalGenericoBox #fSalvar');
+    await pg.waitForFunction(() => /OVR-00001: ajuste salvo/.test(document.querySelector('#toast').textContent));
+    assert.match(await pg.textContent('#modalGenericoBox'), /desconsiderado no C3B/);
+    assert.match(await pg.textContent('#modalGenericoBox'), /Fonte original: L \/ SEM_DESIGNACAO · Ajuste: OVR-00001/);
+    assert.equal(await pg.$$eval('#modalGenericoBox [data-hab="remover"]', e => e.length), antes - 1);
+    await pg.click('#modalGenericoBox [data-acao="historico"]');
+    assert.match(await pg.textContent('#perfilForm'), /CRIADO · registro/);
+    await pg.click('#perfilForm [data-desfazer="OVR-00001"]');
+    await pg.waitForFunction(() => /OVR-00001 desfeito/.test(document.querySelector('#toast').textContent));
+    assert.equal(await pg.$$eval('#modalGenericoBox [data-hab="remover"]', e => e.length), antes);
+    await pg.click('#modalGenericoBox [data-fechar]');
+    await pg.waitForSelector('#painelBYD');
+  });
   await t.test('sem erros no console', () => assert.deepEqual(erros, []));
 });
