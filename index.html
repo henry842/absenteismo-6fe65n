@@ -6,789 +6,312 @@
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://ztmwsvfqlozilwnqkrom.supabase.co wss://ztmwsvfqlozilwnqkrom.supabase.co https://cdn.jsdelivr.net; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#1a5fd6">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Absenteísmo">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
 <link rel="icon" href="icone-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="estilo.css">
 <title>Absenteísmo dos times</title>
-<style>
-  :root {
-    --fundo: #f5f7fb;
-    --cartao: #ffffff;
-    --texto: #0f1b33;
-    --suave: #5b6679;
-    --fraco: #8a94a6;
-    --borda: #e3e7ee;
-    --borda-forte: #cfd6e1;
-    --azul: #1a5fd6;
-    --azul-escuro: #144bb0;
-    --azul-claro: #eaf1fd;
-    --azul-borda: #b9cff5;
-    --verde: #15803d;
-    --verde-claro: #e7f6ec;
-    --verde-borda: #b7e2c5;
-    --amarelo: #a15c00;
-    --amarelo-forte: #f2a100;
-    --amarelo-claro: #fff6e0;
-    --amarelo-borda: #f5d58a;
-    --vermelho: #c62828;
-    --vermelho-claro: #fdeceb;
-    --vermelho-borda: #f3b8b4;
-    --laranja: #e07b00;
-    --laranja-claro: #fff1e0;
-    --raio: 14px;
-    --sombra: 0 1px 2px rgba(15, 27, 51, .04), 0 2px 8px rgba(15, 27, 51, .04);
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--fundo); color: var(--texto);
-    font: 16px/1.45 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
-  }
-  svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
-  .envolve { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
-
-  /* ---------- Topo ---------- */
-  header.topo { background: var(--cartao); border-bottom: 1px solid var(--borda); }
-  .marca { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
-  .logo {
-    width: 56px; height: 56px; border-radius: 14px; flex: none; display: grid; place-items: center;
-    background: linear-gradient(145deg, #2f78f0, #1552c4); color: #fff; box-shadow: 0 4px 12px rgba(26, 95, 214, .25);
-  }
-  .logo svg.i { width: 28px; height: 28px; }
-  .marca h1 { font-size: 24px; margin: 0; letter-spacing: -.01em; }
-  .marca p { margin: 2px 0 0; color: var(--suave); }
-  .marca .espaco { flex: 1; }
-  .pilula {
-    display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--borda); background: var(--cartao);
-    border-radius: 10px; padding: 9px 14px; color: var(--suave); font: inherit; font-size: 14px; white-space: nowrap;
-  }
-  button.pilula { cursor: pointer; }
-  #estadoExcel.ok { color: var(--verde); border-color: var(--verde-borda); background: var(--verde-claro); }
-  #estadoExcel.atencao { color: var(--amarelo); border-color: var(--amarelo-borda); background: var(--amarelo-claro); }
-  #estadoExcel.erro { color: var(--vermelho); border-color: var(--vermelho-borda); background: var(--vermelho-claro); }
-
-  nav.passos { background: var(--cartao); border-bottom: 1px solid var(--borda); position: sticky; top: 0; z-index: 10; }
-  nav.passos .envolve { display: flex; overflow-x: auto; }
-  .passo {
-    display: flex; align-items: center; gap: 12px; flex: 1; min-width: 190px; padding: 14px 16px 14px 0;
-    border: 0; background: none; font: inherit; color: var(--texto); cursor: pointer; text-align: left;
-    border-bottom: 3px solid transparent; position: relative;
-  }
-  .passo + .passo { padding-left: 16px; }
-  .passo.divisor::before { content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 1px; background: var(--borda); }
-  .passo .bola {
-    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none;
-    background: #eef1f6; color: var(--suave); font-weight: 600; font-size: 17px;
-  }
-  .passo .titulo { font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .passo .sub { font-size: 13px; color: var(--fraco); }
-  .passo.ativa { border-bottom-color: var(--azul); }
-  .passo.ativa .bola { background: var(--azul); color: #fff; }
-  .passo.ativa .titulo { color: var(--azul); }
-  .contador {
-    min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; display: inline-grid; place-items: center;
-    background: var(--amarelo-claro); color: var(--amarelo); font-size: 13px; font-weight: 700; border: 1px solid var(--amarelo-borda);
-  }
-  .contador[hidden] { display: none; }
-
-  /* ---------- Página ---------- */
-  main { padding: 28px 0 60px; }
-  section.aba { display: none; }
-  section.aba.ativa { display: block; }
-  .cabeca { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
-  .cabeca h2 { font-size: 30px; margin: 0; letter-spacing: -.01em; }
-  .cabeca p { margin: 4px 0 0; color: var(--suave); font-size: 16px; }
-  .cabeca .espaco { flex: 1; }
-  .cabeca > .ladrilho + div { flex: 1 1 300px; min-width: 0; }
-  .ladrilho {
-    width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex: none;
-    background: var(--azul-claro); color: var(--azul);
-  }
-  .ladrilho.grande { width: 56px; height: 56px; border-radius: 14px; }
-  .ladrilho.grande svg.i { width: 28px; height: 28px; }
-  .ladrilho.p { width: 40px; height: 40px; border-radius: 10px; }
-  .ladrilho.verde { background: var(--verde-claro); color: var(--verde); }
-  .ladrilho.amarelo { background: var(--amarelo-claro); color: var(--laranja); }
-  .ladrilho.laranja { background: var(--laranja-claro); color: var(--laranja); }
-  .ladrilho.vermelho { background: var(--vermelho-claro); color: var(--vermelho); }
-  .ladrilho.whats { background: #25a244; color: #fff; }
-
-  .cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 20px; box-shadow: var(--sombra); margin-bottom: 18px; }
-  .cartao-topo { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
-  .cartao-topo h3 { margin: 0; font-size: 18px; }
-  .cartao-topo p { margin: 3px 0 0; color: var(--suave); font-size: 14px; }
-  .cartao-topo .espaco { flex: 1; }
-  .cartao-topo > .ladrilho + div { flex: 1 1 260px; min-width: 0; }
-  .grade-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
-  .grade-2 > .cartao { margin-bottom: 0; }
-  .grade-2 + .grade-2, .grade-2 + .cartao, .cartao + .grade-2 { margin-top: 18px; }
-  .lado { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
-  .pilha > .cartao:last-child { margin-bottom: 0; }
-
-  label.rotulo, .rotulo { font-size: 14px; color: var(--suave); display: block; margin-bottom: 6px; }
-  textarea, input, select {
-    font: inherit; color: inherit; border: 1px solid var(--borda-forte); border-radius: 8px;
-    padding: 10px 12px; background: #fff; width: 100%;
-  }
-  input:disabled { background: #f3f5f9; color: var(--suave); }
-  textarea { resize: vertical; font-family: Consolas, "Courier New", monospace; font-size: 14px; }
-  input:focus, textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--azul); outline-offset: 1px; }
-  .com-icone { position: relative; }
-  .com-icone svg.i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--fraco); pointer-events: none; }
-  .com-icone input { padding-left: 44px; }
-  .contagem-car { text-align: right; font-size: 13px; color: var(--fraco); margin-top: 4px; }
-
-  .botao {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    font: inherit; font-weight: 600; border: 1px solid var(--azul); background: var(--azul); color: #fff;
-    border-radius: 8px; padding: 10px 18px; cursor: pointer; white-space: nowrap; text-decoration: none;
-  }
-  .botao:hover { background: var(--azul-escuro); border-color: var(--azul-escuro); }
-  .botao.sec { background: #fff; color: var(--azul); border-color: var(--azul-borda); }
-  .botao.sec:hover { background: var(--azul-claro); }
-  .botao.neutro { background: #fff; color: var(--texto); border-color: var(--borda-forte); }
-  .botao.neutro:hover { background: #f3f5f9; }
-  .botao.perigo { background: #fff; color: var(--vermelho); border-color: var(--vermelho-borda); }
-  .botao.perigo:hover { background: var(--vermelho-claro); }
-  .botao.p { padding: 7px 12px; font-size: 14px; }
-  .botao.g { padding: 13px 24px; font-size: 17px; border-radius: 10px; }
-  .botao.icone { padding: 8px; width: 40px; height: 40px; }
-  .botao:disabled { opacity: .45; cursor: not-allowed; }
-  .linha { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .espaco { flex: 1; }
-
-  .caixa-aviso { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; margin: 8px 0; border: 1px solid transparent; }
-  .caixa-aviso svg.i { margin-top: 1px; }
-  .caixa-aviso.amarelo { background: var(--amarelo-claro); color: #7a4600; border-color: #f7e2ac; }
-  .caixa-aviso.amarelo svg.i { color: var(--laranja); }
-  .caixa-aviso.vermelho { background: var(--vermelho-claro); color: var(--vermelho); border-color: #f8cfcc; }
-  .caixa-aviso.info { background: var(--azul-claro); color: #164a9e; border-color: #d3e2fb; }
-  .caixa-aviso.ok { background: var(--verde-claro); color: var(--verde); border-color: var(--verde-borda); }
-
-  .selo { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding: 5px 12px; border-radius: 16px; font-size: 14px; }
-  .selo svg.i { width: 18px; height: 18px; }
-  .selo.verde { background: var(--verde-claro); color: var(--verde); }
-  .selo.amarelo { background: var(--amarelo-claro); color: var(--amarelo); }
-  .selo.amarelo svg.i { color: var(--amarelo-forte); }
-  .selo.vermelho { background: var(--vermelho-claro); color: var(--vermelho); }
-
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
-  th { font-size: 14px; color: var(--suave); font-weight: 500; }
-  table.cinza thead th { background: #f3f5f9; color: var(--texto); font-weight: 600; }
-  table.cinza thead th:first-child { border-top-left-radius: 8px; }
-  table.cinza thead th:last-child { border-top-right-radius: 8px; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  td.centro, th.centro { text-align: center; font-variant-numeric: tabular-nums; }
-  .tabela-rolar { overflow-x: auto; }
-  .vazio-tracejado {
-    border: 1.5px dashed var(--borda-forte); border-radius: 12px; padding: 24px; text-align: center; color: var(--suave);
-  }
-  .vazio-tracejado svg.i { width: 32px; height: 32px; color: var(--fraco); display: block; margin: 0 auto 8px; }
-  .vazio-tracejado small { display: block; color: var(--fraco); }
-  #toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #0f1b33; color: #fff; padding: 12px 20px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.2);
-    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30;
-  }
-  #toast.mostrar { opacity: 1; }
-  .etiqueta { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--amarelo-claro); color: var(--amarelo); }
-  .acima, .kpi .valor.acima { color: var(--vermelho) !important; }
-  .subiu { color: var(--vermelho); font-weight: 600; }
-  .desceu { color: var(--verde); font-weight: 600; }
-  .igual { color: var(--fraco); }
-  pre.whats {
-    white-space: pre-wrap; background: #f2fbf5; border: 1px solid var(--verde-borda); border-radius: 10px;
-    padding: 14px 16px; font: 14px/1.5 Consolas, "Courier New", monospace; margin: 0; color: var(--texto);
-  }
-  .previa { border-left: 4px solid #22a052; border-radius: 10px; background: #f2fbf5; padding: 12px 16px; }
-  .previa b { color: var(--verde); font-size: 14px; display: block; margin-bottom: 6px; }
-  .previa pre { margin: 0; white-space: pre-wrap; font: 14px/1.5 Consolas, "Courier New", monospace; }
-
-  /* ---------- 1. Colar ---------- */
-  .numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
-  .numero { display: flex; gap: 14px; align-items: center; background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; box-shadow: var(--sombra); }
-  .numero .grande { font-size: 26px; font-weight: 700; line-height: 1.1; }
-  .numero .t { font-weight: 600; }
-  .numero .s { font-size: 14px; color: var(--suave); }
-  .numero .ponto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22a052; margin-right: 6px; }
-  #entrada { min-height: 260px; }
-  .mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .mini > div { border: 1px solid var(--borda); border-radius: 12px; padding: 14px; display: flex; gap: 10px; align-items: flex-start; }
-  .mini .n { font-size: 24px; font-weight: 700; line-height: 1.1; }
-  .mini .s { font-size: 13px; color: var(--suave); }
-  .mini .n.alerta { color: var(--laranja); }
-  .passos-lista { list-style: none; padding: 0; margin: 0; }
-  .passos-lista li { display: flex; gap: 12px; align-items: center; padding: 7px 0; color: var(--suave); }
-  .passos-lista .nb { width: 28px; height: 28px; border-radius: 50%; background: var(--azul-claro); color: var(--azul); display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none; }
-  .identifica { list-style: none; padding: 0; margin: 0; }
-  .identifica li { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
-  .identifica b { display: block; font-size: 15px; }
-  .identifica span { font-size: 14px; color: var(--suave); }
-
-  /* ---------- 2. Conferência ---------- */
-  .msg { border-left: 5px solid var(--borda-forte); padding: 22px 24px; }
-  .msg.verde { border-left-color: #22a052; }
-  .msg.amarelo { border-left-color: var(--amarelo-forte); }
-  .msg.vermelho { border-left-color: var(--vermelho); }
-  .msg-topo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
-  .msg-topo h3 { font-size: 26px; margin: 0; letter-spacing: -.01em; }
-  .campos { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 18px 0; }
-  .msg hr { border: 0; border-top: 1px solid var(--borda); margin: 6px 0 16px; }
-  .ausentes-titulo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; margin-bottom: 8px; }
-  .ausentes-titulo svg.i { color: var(--azul); width: 24px; height: 24px; }
-  table.pessoas th { padding: 8px 6px; }
-  table.pessoas td { padding: 8px 6px; border-bottom: 1px solid var(--borda); }
-  .msg-rodape { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-  details.original { margin-top: 12px; }
-  details.original summary { cursor: pointer; color: var(--suave); }
-  details.original pre { white-space: pre-wrap; background: #f3f5f9; padding: 12px; border-radius: 8px; font-size: 13px; }
-
-  /* ---------- 3. Dia ---------- */
-  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-  .kpi { display: flex; gap: 14px; background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 18px; box-shadow: var(--sombra); }
-  .kpi .rot { font-size: 14px; color: var(--suave); }
-  .kpi .valor { font-size: 30px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
-  .kpi .det { font-size: 13px; color: var(--fraco); }
-  .kpi.destaque { background: var(--azul-claro); border-color: var(--azul-borda); }
-  .kpi.destaque .rot, .kpi.destaque .valor { color: var(--azul); }
-  .kpi.destaque .valor { font-size: 34px; }
-  .kpi.destaque .ladrilho { background: #fff; }
-  .progresso { height: 6px; border-radius: 3px; background: #e6eaf1; margin-top: 6px; overflow: hidden; }
-  .progresso > span { display: block; height: 100%; background: #22a052; border-radius: 3px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 12px; font-weight: 600; font-size: 14px; }
-  .chip svg.i { width: 15px; height: 15px; }
-  .chip.ok { background: var(--verde-claro); color: var(--verde); }
-  .chip.falta { background: var(--vermelho-claro); color: var(--vermelho); }
-  .mandou { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .mandou .texto { flex: 1; min-width: 260px; }
-  .resumo-tiles { display: flex; gap: 12px; flex-wrap: wrap; }
-  .tile { display: flex; gap: 10px; align-items: center; border-radius: 10px; padding: 12px 16px; min-width: 180px; }
-  .tile.verde { background: var(--verde-claro); }
-  .tile.amarelo { background: var(--amarelo-claro); }
-  .tile b { display: block; font-size: 14px; }
-  .tile span { font-size: 13px; color: var(--suave); }
-  .tile .ladrilho { background: #fff; }
-  .barra { background: #e6eaf1; border-radius: 6px; height: 12px; min-width: 120px; }
-  .barra > span { display: block; height: 100%; background: var(--azul); border-radius: 6px; }
-
-  /* ---------- Histórico ---------- */
-  .busca { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.4fr); gap: 20px; align-items: center; }
-  .atalhos { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 16px; }
-  .atalhos .botao { padding: 8px 16px; font-weight: 500; }
-  .atalhos .botao.ligado { background: var(--azul); color: #fff; border-color: var(--azul); }
-  .faixa { display: flex; align-items: center; gap: 18px; background: var(--azul-claro); border-radius: 12px; padding: 16px 20px; }
-  .faixa .ladrilho { background: #fff; }
-  .faixa .rot { color: var(--texto); }
-  .faixa .valor { font-size: 32px; font-weight: 700; color: var(--azul); line-height: 1.1; }
-  .faixa .extra { color: var(--suave); font-size: 14px; }
-  .datas { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .datas label { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-  .datas input { width: auto; }
-  svg.grafico { width: 100%; height: auto; display: block; }
-  svg.grafico text { font: 12px "Segoe UI", system-ui, sans-serif; fill: var(--suave); }
-  svg.grafico .grade { stroke: var(--borda); stroke-width: 1; }
-  svg.grafico .serie { fill: none; stroke: var(--azul); stroke-width: 2.5; }
-  svg.grafico .pt { fill: var(--azul); }
-  svg.grafico .pt.acima { fill: var(--vermelho); }
-  svg.grafico .meta { stroke: var(--vermelho); stroke-width: 1.5; stroke-dasharray: 6 4; }
-  svg.grafico text.meta-txt { fill: var(--vermelho); font-weight: 600; }
-
-  /* ---------- Ajustes ---------- */
-  .checks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; border: 1px solid var(--borda); border-radius: 10px; padding: 14px 16px; }
-  .checks label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  .checks input { width: 18px; height: 18px; margin: 0; }
-
-  .so-impressao { display: none; }
-  .so-celular { display: none; }
-  table.time-dia th:first-child, table.time-dia td:first-child { position: sticky; left: 0; background: var(--cartao); z-index: 1; box-shadow: 1px 0 0 var(--borda); }
-  table.time-dia thead th:first-child { background: #f3f5f9; }
-  .dica-rolar { display: none; font-size: 13px; color: var(--fraco); margin-top: 6px; }
-
-  /* ---------- Login e usuário ---------- */
-  #telaLogin {
-    position: fixed; inset: 0; z-index: 50; background: var(--fundo); overflow: auto;
-    display: flex; align-items: center; justify-content: center; padding: 24px 16px;
-  }
-  #telaLogin[hidden] { display: none; }
-  .login { width: 100%; max-width: 420px; }
-  .login .logo { margin: 0 auto 14px; }
-  .login h1 { text-align: center; font-size: 24px; margin: 0; }
-  .login .sub { text-align: center; color: var(--suave); margin: 4px 0 20px; }
-  .login form { display: grid; gap: 12px; }
-  .login .botao { width: 100%; }
-  .login .links { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-  .link { background: none; border: 0; padding: 4px 0; color: var(--azul); font: inherit; font-weight: 600; cursor: pointer; }
-  .login .msg-login:empty { display: none; }
-  .usuario { position: relative; }
-  .avatar {
-    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none;
-    background: #e6ecf6; color: var(--texto); font-weight: 700; font-size: 14px;
-  }
-  #btnUsuario { padding: 5px 12px 5px 5px; }
-  .menu-usuario {
-    position: absolute; right: 0; top: calc(100% + 6px); background: var(--cartao); border: 1px solid var(--borda);
-    border-radius: 12px; box-shadow: 0 10px 30px rgba(15, 27, 51, .12); padding: 8px; min-width: 240px; z-index: 20;
-  }
-  .menu-usuario[hidden] { display: none; }
-  .menu-usuario .quem { padding: 8px 10px 10px; border-bottom: 1px solid var(--borda); margin-bottom: 6px; font-size: 14px; color: var(--suave); word-break: break-all; }
-  .menu-usuario button { width: 100%; justify-content: flex-start; }
-  #estadoSinc.ok { color: var(--verde); border-color: var(--verde-borda); background: var(--verde-claro); }
-  #estadoSinc.atencao { color: var(--amarelo); border-color: var(--amarelo-borda); background: var(--amarelo-claro); }
-  #estadoSinc.erro { color: var(--vermelho); border-color: var(--vermelho-borda); background: var(--vermelho-claro); }
-  @media (max-width: 900px) {
-    .marca { gap: 10px; }
-    .marca p { display: none; }
-    .marca h1 { font-size: 18px; }
-    .logo { width: 44px; height: 44px; border-radius: 12px; }
-    .marca .pilula > span:not(.avatar) { display: none; }
-    nav.passos .envolve { padding: 0 4px; }
-    .passo, .passo + .passo { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 4px; padding: 8px 2px 6px; text-align: center; }
-    .passo.divisor::before { display: none; }
-    .passo .bola { width: 32px; height: 32px; font-size: 14px; }
-    .passo .bola svg.i { width: 18px; height: 18px; }
-    .passo .titulo { font-size: 12px; line-height: 1.2; justify-content: center; flex-wrap: wrap; gap: 3px; }
-    .contador { min-width: 18px; height: 18px; font-size: 11px; padding: 0 4px; }
-    .marca .pilula { padding: 8px; }
-    #btnUsuario { padding: 3px; }
-  }
-
-  @media (max-width: 1100px) {
-    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
-    .lado { grid-template-columns: minmax(0, 1fr); }
-    .numeros { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .passo { min-width: 0; }
-    .passo .sub { display: none; }
-    .passo .bola { width: 36px; height: 36px; font-size: 15px; }
-    .marca .pilula.data { display: none; }
-    .marca p { display: none; }
-    .marca h1 { white-space: nowrap; }
-    #estadoExcel > span { display: none; }
-    .passo { gap: 8px; padding-right: 8px; }
-    .passo + .passo { padding-left: 8px; }
-  }
-  @media (max-width: 800px) {
-    .envolve { padding: 0 16px; }
-    .numeros, .mini { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .kpi.destaque { grid-column: 1 / -1; }
-    .grade-2, .busca { grid-template-columns: minmax(0, 1fr); }
-    .grade-2 > .cartao + .cartao { margin-top: 0; }
-    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .checks { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .marca .pilula.data { display: none; }
-    .cabeca h2 { font-size: 24px; }
-  }
-  /* ---------- Celular ---------- */
-  @media (max-width: 600px) {
-    body { font-size: 15px; }
-    .envolve { padding: 0 12px; }
-    header.topo { padding-top: env(safe-area-inset-top); }
-    .marca { padding: 10px 0; }
-    .marca h1 { font-size: 17px; line-height: 1.2; white-space: normal; }
-    .marca > .logo + div { flex: 1 1 auto; min-width: 0; }
-    .marca .espaco { display: none; }
-    #btnUsuario > svg.i { display: none; }
-    #estadoExcel { display: none; } /* no celular o Excel é só "baixar cópia", em Ajustes */
-    main { padding: 16px 0 calc(40px + env(safe-area-inset-bottom)); }
-    textarea { font-size: 16px; } /* menos de 16px faz o iPhone dar zoom ao tocar */
-
-    .cabeca { gap: 12px; margin-bottom: 16px; flex-wrap: nowrap; align-items: flex-start; }
-    .cabeca h2 { font-size: 21px; line-height: 1.2; }
-    .cabeca p { font-size: 14px; }
-    .ladrilho.grande { width: 44px; height: 44px; border-radius: 12px; }
-    .ladrilho.grande svg.i { width: 22px; height: 22px; }
-    #aba-dia .cabeca { flex-wrap: wrap; }
-    .cabeca > .ladrilho + div { flex: 1 1 0; min-width: 0; }
-    .cabeca .espaco { display: none; }
-    #aba-dia .cabeca .datas { width: 100%; }
-    #aba-dia .cabeca .datas input { flex: 1; }
-
-    .cartao { padding: 14px; border-radius: 12px; margin-bottom: 14px; }
-    .grade-2 { gap: 14px; }
-    .grade-2 + .grade-2, .grade-2 + .cartao, .cartao + .grade-2 { margin-top: 14px; }
-    .cartao-topo { gap: 10px; margin-bottom: 12px; }
-    .cartao-topo h3 { font-size: 16px; }
-    .cartao-topo p { font-size: 13px; }
-    .cartao-topo .espaco { display: none; }
-    .cartao-topo > .linha, .cartao-topo > .botao, .cartao-topo > .datas, .cartao-topo > select { width: 100%; }
-    .ladrilho.p { width: 36px; height: 36px; border-radius: 9px; }
-    .ladrilho.p svg.i { width: 18px; height: 18px; }
-    .linha > .botao, .linha > label.botao { flex: 1 1 auto; }
-    .linha > .espaco { display: none; }
-    .botao { white-space: normal; text-align: center; }
-    .botao.g { padding: 12px 16px; font-size: 16px; }
-    #toast { left: 12px; right: 12px; transform: none; text-align: center; bottom: calc(16px + env(safe-area-inset-bottom)); }
-    pre.whats { font-size: 13px; padding: 12px; }
-    th, td { padding: 8px 6px; }
-    th { font-size: 13px; }
-
-    /* 1. Colar */
-    .numeros { gap: 10px; margin-bottom: 14px; }
-    .numero { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
-    .numero .ladrilho { width: 36px; height: 36px; border-radius: 9px; }
-    .numero .grande { font-size: 22px; }
-    .numero .s { font-size: 13px; }
-    .numeros .numero:nth-child(2), .numeros .numero:nth-child(3) { display: none; } /* a caixa de colar sobe; a conferência já mostra o contador no menu */
-    #aba-colar .cartao-topo > [data-acao-colar] { display: none; } /* já tem "Colar exemplo" embaixo da caixa */
-    #entrada { min-height: 200px; }
-    .mini { gap: 8px; }
-    .mini > div { padding: 10px; }
-    .mini .n { font-size: 20px; }
-    .mini .ladrilho { display: none; }
-
-    /* 2. Conferência: cada pessoa vira um bloco empilhado */
-    .msg { padding: 14px; border-left-width: 4px; }
-    .msg-topo { gap: 8px; }
-    .msg-topo h3 { font-size: 19px; flex: 1 1 100%; }
-    .msg-topo .espaco { display: none; }
-    .msg-topo [data-acao="descartar"] { margin-left: auto; padding: 6px 12px; font-size: 14px; }
-    .caixa-aviso { padding: 10px 12px; gap: 8px; font-size: 14px; }
-    .campos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin: 14px 0; }
-    .campos > div:first-child { grid-column: 1 / -1; }
-    .ausentes-titulo { font-size: 16px; }
-    .msg .tabela-rolar { overflow: visible; }
-    table.pessoas, table.pessoas tbody { display: block; }
-    table.pessoas thead { display: none; }
-    table.pessoas tr {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px 8px;
-      padding: 12px 0; border-bottom: 1px solid var(--borda); align-items: end;
-    }
-    table.pessoas td { padding: 0; border: 0; min-width: 0; }
-    table.pessoas td:nth-child(1) { grid-column: 1 / -1; }
-    table.pessoas td:nth-child(2) { grid-column: 1; }
-    table.pessoas td:nth-child(3) { grid-column: 2 / -1; }
-    table.pessoas td:nth-child(4) { grid-column: 1 / 3; }
-    table.pessoas td:nth-child(5) { grid-column: 3; }
-    table.pessoas td[data-rot]::before { content: attr(data-rot); display: block; font-size: 12px; color: var(--fraco); margin-bottom: 3px; }
-    .msg-rodape { flex-direction: column; align-items: stretch; }
-    .msg-rodape .espaco { display: none; }
-    .msg-rodape [data-acao="gravar"] { order: -1; }
-    #aba-conferencia > .linha { flex-direction: column; align-items: stretch; }
-
-    /* 3. Fechamento */
-    .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 14px; }
-    .kpi { padding: 12px; gap: 10px; flex-direction: column; }
-    .kpi .ladrilho { width: 34px; height: 34px; }
-    .kpi .valor { font-size: 24px; }
-    .kpi.destaque { grid-column: 1 / -1; flex-direction: row; align-items: center; }
-    .kpi.destaque .valor { font-size: 30px; }
-    .mandou .texto { min-width: 0; flex: 1 1 100%; }
-    .mandou > .ladrilho { display: none; }
-    .resumo-tiles { width: 100%; gap: 8px; }
-    .tile { flex: 1 1 0; min-width: 0; padding: 10px; }
-    .tile .ladrilho { display: none; }
-    .col-barra, .col-pres { display: none; }
-    #conteudoDia td .botao.icone { width: 34px; height: 34px; padding: 6px; }
-    #conteudoDia td:first-child { min-width: 88px; }
-    #conteudoDia th, #conteudoDia td { padding: 8px 4px; font-size: 14px; }
-    #conteudoDia td .botao.icone { width: 30px; height: 30px; padding: 5px; }
-    .so-grande { display: none; }
-    .so-celular { display: inline; }
-
-    /* Histórico */
-    .busca { gap: 12px; }
-    .datas { width: 100%; gap: 8px; }
-    .datas label { flex: 1 1 100%; font-weight: 500; font-size: 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; }
-    /* iPhone: o campo de data ignora a largura se não tirar a aparência nativa */
-    input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; text-align: left; background: #fff; }
-    input[type="date"]::-webkit-date-and-time-value { text-align: left; }
-    #aba-dia .cabeca .datas { display: grid; grid-template-columns: 34px minmax(0, 1fr); }
-    .datas input { width: 100%; min-width: 0; }
-    .atalhos { gap: 6px; }
-    .atalhos .botao { flex: 1 1 auto; padding: 7px 10px; font-size: 14px; }
-    .faixa { flex-wrap: wrap; gap: 10px 14px; padding: 12px 14px; }
-    .faixa .valor { font-size: 26px; }
-    .faixa .extra { flex: 1 1 100%; }
-
-    #serieGrafico { width: 100% !important; min-width: 0 !important; }
-    .dica-rolar { display: block; }
-    table.time-dia td:first-child { max-width: 110px; }
-
-    /* Ajustes */
-    .checks { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-    #modeloTime { min-width: 0 !important; width: 100% !important; }
-    #aba-ajustes .linha > label { flex: 1 1 100%; }
-  }
-
-  @media print {
-    body { background: #fff; font-size: 12px; }
-    header.topo, nav.passos, #toast, .nao-imprimir, button, .atalhos, input[type="checkbox"] { display: none !important; }
-    main { padding: 0; }
-    .cartao, .kpi, .numero { box-shadow: none; break-inside: avoid; }
-    .so-impressao { display: block; }
-    pre.whats { display: none; }
-    .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  }
-</style>
 </head>
-<body>
-<header class="topo">
-  <div class="envolve marca">
-    <div class="logo"><i data-i="users"></i></div>
-    <div>
-      <h1>Absenteísmo dos times</h1>
-      <p>Controle de presença e ausências via WhatsApp</p>
-    </div>
-    <span class="espaco"></span>
-    <span class="pilula data"><i data-i="calendar"></i><span id="dataHoje"></span></span>
-    <button class="pilula" id="estadoSinc" title="Sincronização"><i data-i="nuvem"></i><span>Sincronizando…</span></button>
-    <button class="pilula" id="estadoExcel" title="Arquivo Excel"><i data-i="sheet"></i><span>Excel</span></button>
-    <div class="usuario">
-      <button class="pilula" id="btnUsuario" aria-haspopup="true"><span class="avatar" id="iniciais">?</span><span id="nomeUsuario">Entrar</span><i data-i="chevron"></i></button>
-      <div class="menu-usuario" id="menuUsuario" hidden>
-        <div class="quem">Conectado como<br><b id="emailUsuario"></b></div>
-        <button class="botao neutro p" id="btnSincronizarAgora"><i data-i="nuvem"></i>Sincronizar agora</button>
-        <button class="botao neutro p" id="btnSair" style="margin-top:6px"><i data-i="sair"></i>Sair desta conta</button>
-      </div>
-    </div>
-  </div>
-</header>
+<body class="carregando">
+<div class="app">
 
-<!-- LOGIN -->
-<div id="telaLogin" hidden>
-  <div class="login">
-    <div class="logo"><i data-i="users"></i></div>
-    <h1>Absenteísmo dos times</h1>
-    <p class="sub" id="subLogin">Entre com sua conta para ver os dados no celular e no computador.</p>
-    <div class="cartao">
-      <form id="formLogin" autocomplete="on">
-        <div><label class="rotulo" for="loginEmail">E-mail</label><input id="loginEmail" type="email" autocomplete="username" required></div>
-        <div id="campoSenha"><label class="rotulo" for="loginSenha">Senha</label><input id="loginSenha" type="password" autocomplete="current-password" minlength="6" required></div>
-        <div id="campoSenha2" hidden><label class="rotulo" for="loginSenha2">Repita a senha</label><input id="loginSenha2" type="password" autocomplete="new-password" minlength="6"></div>
-        <div class="caixa-aviso msg-login" id="msgLogin"></div>
-        <button class="botao g" type="submit" id="btnEntrar">Entrar</button>
-        <div class="links">
-          <button type="button" class="link" id="lnkModo">Criar conta</button>
-          <button type="button" class="link" id="lnkEsqueci">Esqueci a senha</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-<nav class="passos" id="abas">
-  <div class="envolve">
-    <button class="passo ativa" data-aba="colar"><span class="bola">1</span><span><span class="titulo">Colar mensagens</span><span class="sub">Importe do WhatsApp</span></span></button>
-    <button class="passo" data-aba="conferencia"><span class="bola">2</span><span><span class="titulo">Conferência <span class="contador" id="nPendentes" hidden>0</span></span><span class="sub">Revise e ajuste</span></span></button>
-    <button class="passo" data-aba="dia"><span class="bola">3</span><span><span class="titulo">Fechamento do dia</span><span class="sub">Finalize o dia</span></span></button>
-    <button class="passo divisor" data-aba="historico"><span class="bola"><i data-i="history"></i></span><span><span class="titulo">Histórico</span><span class="sub">Consulte os registros</span></span></button>
-    <button class="passo divisor" data-aba="ajustes"><span class="bola"><i data-i="settings"></i></span><span><span class="titulo">Ajustes</span><span class="sub">Configure o sistema</span></span></button>
-  </div>
-</nav>
+  <!-- Barra lateral no computador; barra de abas embaixo no celular -->
+  <aside class="lateral">
+    <div class="lateral-marca"><span class="logo" aria-hidden="true"><i data-i="users"></i></span><span>Absenteísmo<br>dos times</span></div>
+    <nav class="abas" id="abas" aria-label="Seções">
+      <!-- supervisor -->
+      <button class="passo so-super" data-aba="recebidos"><span class="bola"><i data-i="inbox"></i></span><span class="titulo">Recebidos</span></button>
+      <button class="passo so-legado" data-aba="dia"><span class="bola"><i data-i="chart"></i></span><span class="titulo">Fechamento</span></button>
+      <button class="passo so-legado" data-aba="historico"><span class="bola"><i data-i="history"></i></span><span class="titulo">Histórico</span></button>
+      <button class="passo so-super" data-aba="equipe"><span class="bola"><i data-i="users"></i></span><span class="titulo">Equipe</span></button>
+      <button class="passo so-legado" data-aba="colar" data-tambem="conferencia" aria-current="page"><span class="bola"><i data-i="upload"></i></span><span class="titulo">Importar</span><span class="contador" id="nPendentes" hidden>0</span></button>
+      <span class="lateral-sep so-desktop so-legado" role="separator"></span>
+      <button class="passo so-legado so-desktop" data-aba="ajustes"><span class="bola"><i data-i="settings"></i></span><span class="titulo">Ajustes</span></button>
+      <!-- líder -->
+      <button class="passo so-lider" data-aba-lider="ausencia"><span class="bola"><i data-i="user"></i></span><span class="titulo">Ausência</span><span class="contador" id="liderContadorAtraso" hidden>0</span></button>
+      <button class="passo so-lider" data-aba-lider="saida"><span class="bola"><i data-i="sair"></i></span><span class="titulo">Saída</span></button>
+      <button class="passo so-lider" data-aba-lider="hoje"><span class="bola"><i data-i="fileText"></i></span><span class="titulo">Hoje</span><span class="contador" id="liderContador" hidden>0</span></button>
+      <button class="passo so-lider" data-aba-lider="ajustes"><span class="bola"><i data-i="settings"></i></span><span class="titulo">Ajustes</span></button>
+    </nav>
+  </aside>
 
-<main class="envolve">
-  <!-- 1. COLAR -->
-  <section id="aba-colar" class="aba ativa">
-    <div class="cabeca">
-      <div class="ladrilho grande whats"><i data-i="whats"></i></div>
-      <div><h2>Importar mensagens do WhatsApp</h2><p>Cole aqui as mensagens de absenteísmo do grupo. Pode colar uma ou várias de uma vez.</p></div>
-    </div>
-    <div class="numeros" id="numerosColar"></div>
-    <div class="lado">
-      <div class="pilha">
-        <div class="cartao">
-          <div class="cartao-topo">
-            <div class="ladrilho p"><i data-i="message"></i></div>
-            <div><h3>Mensagens brutas</h3><p>Cole aqui as mensagens exatamente como aparecem no WhatsApp.</p></div>
-            <span class="espaco"></span>
-            <button class="botao sec p" data-acao-colar="exemplo"><i data-i="file"></i>Colar exemplo</button>
-          </div>
-          <textarea id="entrada" placeholder="Cole aqui as mensagens do grupo..."></textarea>
-          <div class="contagem-car" id="contagemCar">0 caracteres</div>
-          <div class="linha" style="margin-top:10px">
-            <button class="botao g" id="btnLer"><i data-i="play"></i>Ler mensagens</button>
-            <button class="botao sec g" data-acao-colar="exemplo"><i data-i="file"></i>Colar exemplo</button>
-            <button class="botao neutro g" id="btnLimparEntrada"><i data-i="trash"></i>Limpar</button>
-          </div>
-          <div id="resultadoLeitura"></div>
-        </div>
-        <div class="cartao">
-          <div class="cartao-topo">
-            <div class="ladrilho p"><i data-i="chart"></i></div>
-            <div><h3>Resumo da importação</h3><p>Enquanto você cola, veja o que o sistema já identificou.</p></div>
-          </div>
-          <div class="mini" id="resumoImportacao"></div>
-        </div>
-      </div>
-      <div class="pilha">
-        <div class="cartao">
-          <div class="cartao-topo" style="margin-bottom:8px">
-            <div class="ladrilho p amarelo"><i data-i="bulb"></i></div>
-            <div><h3>Como funciona?</h3></div>
-          </div>
-          <ol class="passos-lista">
-            <li><span class="nb">1</span>Copie as mensagens do grupo do WhatsApp.</li>
-            <li><span class="nb">2</span>Cole no campo "Mensagens brutas" (pode ser várias de uma vez).</li>
-            <li><span class="nb">3</span>Clique em “Ler mensagens” para o sistema identificar.</li>
-            <li><span class="nb">4</span>Revise os dados na próxima etapa (Conferência).</li>
-          </ol>
-        </div>
-        <div class="cartao">
-          <div class="cartao-topo" style="margin-bottom:10px">
-            <div class="ladrilho p"><i data-i="fileText"></i></div>
-            <div><h3>Exemplo de mensagem</h3><p>O formato que o sistema lê sem avisos.</p></div>
-            <span class="espaco"></span>
-            <button class="botao sec p" id="btnCopiarExemplo"><i data-i="copy"></i>Copiar</button>
-          </div>
-          <pre class="whats" id="textoExemplo"></pre>
-        </div>
-        <div class="cartao">
-          <div class="cartao-topo" style="margin-bottom:6px">
-            <div class="ladrilho p"><i data-i="chart"></i></div>
-            <div><h3>O que o sistema identifica?</h3></div>
-          </div>
-          <ul class="identifica">
-            <li><div class="ladrilho p"><i data-i="calendar"></i></div><div><b>Data e time</b><span>O time e a data de cada mensagem (ou a data do WhatsApp, se faltar).</span></div></li>
-            <li><div class="ladrilho p laranja"><i data-i="users"></i></div><div><b>Números de presentes e ausentes</b><span>Total, presentes, faltas e a contagem de cada motivo.</span></div></li>
-            <li><div class="ladrilho p verde"><i data-i="fileText"></i></div><div><b>Lista de pessoas ausentes</b><span>Nome, matrícula (ou ID) e motivo da ausência.</span></div></li>
-            <li><div class="ladrilho p amarelo"><i data-i="alert"></i></div><div><b>O que precisa de revisão</b><span>Conta que não fecha, time incompleto, total estranho, pessoa em outro time.</span></div></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. CONFERÊNCIA -->
-  <section id="aba-conferencia" class="aba">
-    <div class="cabeca">
-      <div><h2>Conferência</h2><p>Corrija o que precisar aqui mesmo e clique em <b>Gravar todos</b>: ele grava os verdes e os amarelos (você confirma os avisos). Os vermelhos, com conta que não fecha, ficam de fora.</p></div>
-    </div>
-    <div class="linha" style="margin-bottom:20px">
-      <button class="botao g" id="btnConfirmarVerdes"><i data-i="checkCircle"></i><span>Gravar todos</span></button>
-      <span id="dicaGravarTodos" style="color:var(--suave)"></span>
-    </div>
-    <div id="listaConferencia"></div>
-  </section>
-
-  <!-- 3. DIA -->
-  <section id="aba-dia" class="aba">
-    <div class="cabeca">
-      <div class="ladrilho grande"><i data-i="chart"></i></div>
-      <div><h2>Fechamento do dia</h2><p>Veja o resumo da presença, ausências e os times que já enviaram. Gere o resumo para compartilhar.</p></div>
+  <div class="conteudo">
+    <header class="barra-topo">
+      <div class="barra-marca"><span class="logo" aria-hidden="true"><i data-i="users"></i></span><span class="barra-nome">Absenteísmo</span></div>
+      <span class="pilula data"><i data-i="calendar"></i><span id="dataHoje"></span></span>
       <span class="espaco"></span>
-      <label class="datas nao-imprimir"><span>Data</span><input type="date" id="dataDia"></label>
-    </div>
-    <div id="conteudoDia"></div>
-  </section>
+      <button class="pilula" id="estadoSinc" title="Sincronização"><i data-i="nuvem"></i><span>Sincronizando…</span></button>
+      <button class="pilula" id="estadoExcel" title="Arquivo Excel"><i data-i="sheet"></i><span>Excel</span></button>
+      <div class="usuario">
+        <button class="pilula" id="btnUsuario" aria-haspopup="true" aria-label="Conta"><span class="avatar" id="iniciais">?</span><span id="nomeUsuario">Entrar</span><i data-i="chevron"></i></button>
+        <div class="menu-usuario" id="menuUsuario" hidden>
+          <div class="quem">Conectado como<br><b id="emailUsuario"></b></div>
+          <button class="botao neutro p so-compacto" id="btnMenuAjustes"><i data-i="settings"></i>Ajustes</button>
+          <button class="botao neutro p" id="btnSincronizarAgora"><i data-i="nuvem"></i>Sincronizar agora</button>
+          <button class="botao neutro p" id="btnTrocarSenha"><i data-i="key"></i>Trocar minha senha</button>
+          <button class="botao neutro p" id="btnSair"><i data-i="sair"></i>Sair desta conta</button>
+        </div>
+      </div>
+    </header>
 
-  <!-- HISTÓRICO -->
-  <section id="aba-historico" class="aba">
-    <div class="cabeca">
-      <div class="ladrilho grande"><i data-i="history"></i></div>
-      <div><h2>Histórico</h2><p>Busque e analise os registros anteriores de absenteísmo dos times.</p></div>
-    </div>
-    <div class="cartao nao-imprimir">
-      <div class="busca">
-        <div class="cartao-topo" style="margin:0">
-          <div class="ladrilho p"><i data-i="user"></i></div>
-          <div><h3>Buscar pessoa</h3><p>Digite o nome ou a matrícula para ver as ausências.</p></div>
-        </div>
-        <div class="com-icone"><i data-i="search"></i><input id="buscaPessoa" placeholder="Digite o nome ou a matrícula"></div>
-      </div>
-      <div id="resultadoBusca"></div>
-    </div>
-    <div class="cartao">
-      <div class="cartao-topo">
-        <div class="ladrilho p"><i data-i="calendar"></i></div>
-        <div><h3>Período e filtros</h3><p>Selecione um período ou use os filtros rápidos.</p></div>
-        <span class="espaco"></span>
-        <div class="datas">
-          <label>De <input type="date" id="periodoDe"></label>
-          <label>Até <input type="date" id="periodoAte"></label>
-        </div>
-      </div>
-      <div class="atalhos">
-        <button class="botao sec" data-periodo="semana">Esta semana</button>
-        <button class="botao sec" data-periodo="semanaPassada">Semana passada</button>
-        <button class="botao sec" data-periodo="mes">Este mês</button>
-        <button class="botao sec" data-periodo="mesPassado">Mês passado</button>
-        <button class="botao sec" data-periodo="30">Últimos 30 dias</button>
-      </div>
-      <div id="faixaPeriodo"></div>
-    </div>
-    <div id="resultadoPeriodo"></div>
-  </section>
+    <main class="pagina">
 
-  <!-- AJUSTES -->
-  <section id="aba-ajustes" class="aba">
-    <div class="cabeca">
-      <div class="ladrilho grande"><i data-i="settings"></i></div>
-      <div><h2>Ajustes</h2><p>Configure o sistema de acordo com a sua operação.</p></div>
-    </div>
-    <div class="grade-2">
+      <!-- RECEBIDOS DOS LÍDERES (supervisor) -->
+      <section id="aba-recebidos" class="aba">
+        <div class="cabeca">
+          <div><h2>Recebidos</h2><p>O que os líderes lançaram, time por time. Atualiza sozinho a cada minuto.</p></div>
+          <div class="datas nao-imprimir"><label><span>Data</span><input type="date" id="dataRecebidos"></label><button class="botao neutro" id="btnRecAtualizar"><i data-i="nuvem"></i>Atualizar</button></div>
+        </div>
+        <div id="conteudoRecebidos"></div>
+      </section>
+
+      <!-- FECHAMENTO DO DIA -->
+      <section id="aba-dia" class="aba">
+        <div class="cabeca">
+          <div><h2>Fechamento do dia</h2><p>Presença, ausências e quem já enviou. Gere o texto para o superior.</p></div>
+          <label class="datas nao-imprimir"><span>Data</span><input type="date" id="dataDia"></label>
+        </div>
+        <div id="conteudoDia"></div>
+      </section>
+
+      <!-- HISTÓRICO -->
+      <section id="aba-historico" class="aba">
+        <div class="cabeca">
+          <div><h2>Histórico</h2><p>Busque e analise os registros anteriores de absenteísmo.</p></div>
+        </div>
+        <div class="cartao nao-imprimir">
+          <div class="busca">
+            <div class="cartao-topo" style="margin:0">
+              <div class="ladrilho p"><i data-i="user"></i></div>
+              <div><h3>Buscar pessoa</h3><p>Digite o nome ou a matrícula para ver as ausências.</p></div>
+            </div>
+            <div class="com-icone"><i data-i="search"></i><input id="buscaPessoa" type="search" placeholder="Nome ou matrícula" aria-label="Buscar pessoa por nome ou matrícula"></div>
+          </div>
+          <div id="resultadoBusca"></div>
+        </div>
+        <div class="cartao">
+          <div class="cartao-topo">
+            <div class="ladrilho p"><i data-i="calendar"></i></div>
+            <div><h3>Período</h3><p>Escolha as datas ou um atalho.</p></div>
+            <div class="datas">
+              <label>De <input type="date" id="periodoDe"></label>
+              <label>Até <input type="date" id="periodoAte"></label>
+            </div>
+          </div>
+          <div class="atalhos">
+            <button class="botao sec" data-periodo="semana">Esta semana</button>
+            <button class="botao sec" data-periodo="semanaPassada">Semana passada</button>
+            <button class="botao sec" data-periodo="mes">Este mês</button>
+            <button class="botao sec" data-periodo="mesPassado">Mês passado</button>
+            <button class="botao sec" data-periodo="30">Últimos 30 dias</button>
+          </div>
+          <div id="faixaPeriodo"></div>
+        </div>
+        <div id="resultadoPeriodo"></div>
+      </section>
+
+      <!-- EQUIPE (supervisor) -->
+      <section id="aba-equipe" class="aba">
+        <div class="cabeca">
+          <div><h2>Equipe</h2><p>Crie o login de cada líder e mantenha a lista de funcionários em dia.</p></div>
+        </div>
+        <div id="conteudoEquipe"></div>
+      </section>
+
+      <!-- IMPORTAR: 1. COLAR -->
+      <section id="aba-colar" class="aba ativa">
+        <div class="cabeca">
+          <div><h2>Importar</h2><p>Para times que ainda mandam no WhatsApp: cole as mensagens do grupo. Pode colar várias de uma vez.</p></div>
+        </div>
+        <div class="segmentado" role="group" aria-label="Etapa da importação">
+          <button data-ir="colar" aria-current="true">1 · Colar</button>
+          <button data-ir="conferencia">2 · Conferir <span class="contador" id="nPendentesSeg" hidden>0</span></button>
+        </div>
+        <p class="linha-info" id="numerosColar"></p>
+        <div class="lado">
+          <div class="pilha">
+            <div class="cartao">
+              <div class="cartao-topo">
+                <div class="ladrilho p"><i data-i="message"></i></div>
+                <div><h3>Mensagens do grupo</h3><p>Cole exatamente como aparecem no WhatsApp.</p></div>
+              </div>
+              <textarea id="entrada" placeholder="Cole aqui as mensagens do grupo…" aria-label="Mensagens do grupo"></textarea>
+              <div class="contagem-car" id="contagemCar">0 caracteres</div>
+              <div class="linha" style="margin-top:.75rem">
+                <button class="botao g" id="btnLer"><i data-i="play"></i>Ler mensagens</button>
+                <button class="botao neutro g" data-acao-colar="exemplo"><i data-i="file"></i>Colar exemplo</button>
+                <button class="botao neutro g" id="btnLimparEntrada"><i data-i="trash"></i>Limpar</button>
+              </div>
+              <div id="resultadoLeitura"></div>
+            </div>
+            <div class="cartao">
+              <div class="cartao-topo">
+                <div class="ladrilho p"><i data-i="chart"></i></div>
+                <div><h3>O que foi identificado</h3><p>Atualiza enquanto você cola.</p></div>
+              </div>
+              <div class="mini" id="resumoImportacao"></div>
+            </div>
+          </div>
+          <div class="pilha">
+            <details class="cartao ajuda">
+              <summary>Como funciona</summary>
+              <div><ol class="passos-lista">
+                <li><span class="nb">1</span>Copie as mensagens do grupo do WhatsApp.</li>
+                <li><span class="nb">2</span>Cole no campo e toque em “Ler mensagens”.</li>
+                <li><span class="nb">3</span>Revise na etapa 2 (Conferir) e grave.</li>
+              </ol></div>
+            </details>
+            <details class="cartao ajuda">
+              <summary>Exemplo de mensagem</summary>
+              <div>
+                <div class="linha" style="margin-bottom:.75rem"><button class="botao sec p" id="btnCopiarExemplo"><i data-i="copy"></i>Copiar exemplo</button></div>
+                <pre class="whats" id="textoExemplo"></pre>
+              </div>
+            </details>
+            <details class="cartao ajuda">
+              <summary>O que o sistema identifica</summary>
+              <div><ul class="identifica">
+                <li><div class="ladrilho p"><i data-i="calendar"></i></div><div><b>Data e time</b><span>De cada mensagem (ou a data do WhatsApp, se faltar).</span></div></li>
+                <li><div class="ladrilho p laranja"><i data-i="users"></i></div><div><b>Presentes e ausentes</b><span>Total, presentes, faltas e a contagem de cada motivo.</span></div></li>
+                <li><div class="ladrilho p verde"><i data-i="fileText"></i></div><div><b>Pessoas ausentes</b><span>Nome, matrícula (ou ID) e motivo.</span></div></li>
+                <li><div class="ladrilho p amarelo"><i data-i="alert"></i></div><div><b>O que precisa de revisão</b><span>Conta que não fecha, time incompleto, pessoa em outro time.</span></div></li>
+              </ul></div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPORTAR: 2. CONFERIR -->
+      <section id="aba-conferencia" class="aba">
+        <div class="cabeca">
+          <div><h2>Importar</h2><p>Corrija o que precisar aqui mesmo. “Gravar todos” grava os verdes e os amarelos (você confirma os avisos). Os vermelhos, com conta que não fecha, ficam de fora.</p></div>
+        </div>
+        <div class="segmentado" role="group" aria-label="Etapa da importação">
+          <button data-ir="colar">1 · Colar</button>
+          <button data-ir="conferencia" aria-current="true">2 · Conferir <span class="contador" id="nPendentesSeg2" hidden>0</span></button>
+        </div>
+        <div class="linha" style="margin-bottom:1.25rem">
+          <button class="botao g" id="btnConfirmarVerdes"><i data-i="checkCircle"></i><span>Gravar todos</span></button>
+          <span id="dicaGravarTodos" style="color:var(--suave)"></span>
+        </div>
+        <div id="listaConferencia"></div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section id="aba-ajustes" class="aba">
+        <div class="cabeca">
+          <div><h2>Ajustes</h2><p>Configure o sistema de acordo com a sua operação.</p></div>
+        </div>
+        <div class="grade-2">
+          <div class="cartao">
+            <div class="cartao-topo">
+              <div class="ladrilho p"><i data-i="fileText"></i></div>
+              <div><h3>Times esperados por dia</h3><p>Um time por linha, escrito como vem na mensagem (ex.: C1B). Serve para mostrar quem ainda não mandou.</p></div>
+            </div>
+            <textarea id="cfgTimes" style="min-height:8rem" placeholder="Digite os times esperados, um por linha…" aria-label="Times esperados por dia"></textarea>
+            <div class="contagem-car" id="contagemTimes">0 times</div>
+            <div class="linha" style="margin-top:.5rem">
+              <button class="botao" id="btnSalvarTimes"><i data-i="save"></i>Salvar times</button>
+              <button class="botao sec" id="btnTimesDosLancamentos"><i data-i="file"></i>Preencher com os já lançados</button>
+            </div>
+          </div>
+          <div class="cartao">
+            <div class="cartao-topo">
+              <div class="ladrilho p verde"><i data-i="sheet"></i></div>
+              <div><h3>Arquivo Excel</h3><p>Escolha uma vez onde salvar. A cada gravação o arquivo é atualizado sozinho, e serve de backup.</p></div>
+            </div>
+            <div class="caixa-aviso info"><i data-i="info"></i><span id="infoExcel"></span></div>
+            <div class="linha" style="margin-top:.75rem">
+              <button class="botao sec" id="btnEscolherExcel"><i data-i="folder"></i>Escolher onde salvar</button>
+              <button class="botao neutro" id="btnSalvarExcelAgora"><i data-i="save"></i>Salvar agora</button>
+              <button class="botao neutro" id="btnBaixarExcel"><i data-i="download"></i>Baixar uma cópia</button>
+            </div>
+          </div>
+        </div>
+        <div class="grade-2">
+          <div class="cartao">
+            <div class="cartao-topo">
+              <div class="ladrilho p"><i data-i="chart"></i></div>
+              <div><h3>Área e meta</h3><p>O nome da área vai no título do texto para o superior (se ficar vazio, usa CHASSI/SUB-MONTAGEM). Times acima da meta ficam em vermelho e ganham ⚠️ no resumo. Deixe a meta vazia se não houver.</p></div>
+            </div>
+            <label class="rotulo" for="cfgArea">Nome da área</label>
+            <input id="cfgArea" placeholder="CHASSI/SUB-MONTAGEM" style="margin-bottom:.75rem">
+            <label class="rotulo" for="cfgMeta">Meta de absenteísmo (%)</label>
+            <div class="linha">
+              <input type="number" id="cfgMeta" min="0" max="100" step="0.1" inputmode="decimal" style="width:8.5rem" placeholder="ex.: 3">
+              <span class="espaco"></span>
+              <button class="botao" id="btnSalvarMeta"><i data-i="save"></i>Salvar área e meta</button>
+            </div>
+          </div>
+          <div class="cartao">
+            <div class="cartao-topo">
+              <div class="ladrilho p vermelho"><i data-i="ban"></i></div>
+              <div><h3>Motivos que não contam no %</h3><p>Marque os motivos que não entram na porcentagem. A pessoa continua na lista.</p></div>
+            </div>
+            <div class="checks" id="cfgNaoContam"></div>
+          </div>
+        </div>
       <div class="cartao">
         <div class="cartao-topo">
-          <div class="ladrilho p"><i data-i="fileText"></i></div>
-          <div><h3>Times esperados por dia</h3><p>Um time por linha, escrito como vem na mensagem (ex.: C1B ou SUB MONTAGEM TURNO B). Serve para mostrar quem ainda não mandou.</p></div>
+          <div class="ladrilho p"><i data-i="users"></i></div>
+          <div><h3>Efetivo previsto</h3><p>É o número da linha “Efetivo previsto” do texto para o superior e dos indicadores. O total presente é o previsto menos os ausentes, e o % de absenteísmo usa o previsto.</p></div>
         </div>
-        <textarea id="cfgTimes" style="min-height:120px" placeholder="Digite os times esperados, um por linha..."></textarea>
-        <div class="contagem-car" id="contagemTimes">0 times</div>
-        <div class="linha" style="margin-top:8px">
-          <button class="botao" id="btnSalvarTimes"><i data-i="save"></i>Salvar times</button>
-          <button class="botao sec" id="btnTimesDosLancamentos"><i data-i="file"></i>Preencher com os times já lançados</button>
+        <div class="opcoes-efetivo" role="radiogroup" aria-label="Como calcular o efetivo previsto">
+          <label class="opcao-radio"><input type="radio" name="efModo" id="efModo-auto" value="auto"><span><b>Automático</b><small>Soma do total de pessoas dos times que enviaram no dia.</small></span></label>
+          <label class="opcao-radio"><input type="radio" name="efModo" id="efModo-cadastro" value="cadastro"><span><b>Cadastro de funcionários</b><small id="efCadastroN"></small></span></label>
+          <label class="opcao-radio"><input type="radio" name="efModo" id="efModo-fixo" value="fixo"><span><b>Valor fixo</b>
+            <span class="linha" style="margin-top:.375rem"><input type="number" id="efFixo" min="1" max="100000" inputmode="numeric" placeholder="ex.: 297" style="width:8.5rem" aria-label="Efetivo previsto fixo"><small>colaboradores</small></span></span></label>
         </div>
+        <div class="contagem-car" id="efPrevia" style="text-align:left;margin:.625rem 0"></div>
+        <button class="botao" id="btnSalvarEfetivo"><i data-i="save"></i>Salvar efetivo previsto</button>
       </div>
-      <div class="cartao">
+      <div class="cartao" id="cartaoPrazo" hidden>
         <div class="cartao-topo">
-          <div class="ladrilho p verde"><i data-i="sheet"></i></div>
-          <div><h3>Arquivo Excel</h3><p>Escolha uma vez onde salvar. Depois, toda vez que você gravar um time, o arquivo é atualizado sozinho. Ele também serve de backup: se o navegador for limpo, é só restaurar a partir dele.</p></div>
+          <div class="ladrilho p"><i data-i="clock"></i></div>
+          <div><h3>Prazo de envio dos times</h3><p>Depois dessa hora, os times que ainda não enviaram ficam destacados em Recebidos, com a cobrança pronta para copiar ou mandar no WhatsApp. Os líderes também veem o prazo. É o mesmo para os dois supervisores.</p></div>
         </div>
-        <div class="caixa-aviso info"><i data-i="info"></i><span id="infoExcel"></span></div>
-        <div class="linha" style="margin-top:12px">
-          <button class="botao" id="btnEscolherExcel"><i data-i="folder"></i>Escolher onde salvar o Excel</button>
-          <button class="botao sec" id="btnSalvarExcelAgora"><i data-i="save"></i>Salvar Excel agora</button>
-          <button class="botao sec" id="btnBaixarExcel"><i data-i="download"></i>Baixar uma cópia</button>
-        </div>
-      </div>
-    </div>
-    <div class="grade-2">
-      <div class="cartao">
-        <div class="cartao-topo">
-          <div class="ladrilho p"><i data-i="chart"></i></div>
-          <div><h3>Área e meta</h3><p>O nome da área vai no título do texto para o superior. Os times acima da meta ficam em vermelho e ganham ⚠️ no resumo. Deixe a meta vazia se não houver.</p></div>
-        </div>
-        <label class="rotulo" for="cfgArea">Nome da área</label>
-        <input id="cfgArea" placeholder="ex.: SUB MONTAGEM TURNO B" style="margin-bottom:12px">
-        <label class="rotulo" for="cfgMeta">Meta de absenteísmo</label>
         <div class="linha">
-          <input type="number" id="cfgMeta" min="0" max="100" step="0.1" style="width:130px" placeholder="ex.: 3"> <span>%</span>
-          <span class="espaco"></span>
-          <button class="botao" id="btnSalvarMeta"><i data-i="save"></i>Salvar área e meta</button>
+          <label class="rotulo" for="prazoHora" style="margin:0">Hora limite</label>
+          <input type="time" id="prazoHora" style="max-width:11rem">
+          <button class="botao" id="btnSalvarPrazo"><i data-i="save"></i>Salvar prazo</button>
+          <button class="botao neutro" id="btnLimparPrazo">Sem prazo</button>
         </div>
+      </div>
+      <div class="cartao" id="cartaoMfa" hidden>
+        <div class="cartao-topo">
+          <div class="ladrilho p verde"><i data-i="shield"></i></div>
+          <div><h3>Verificação em dois passos</h3><p>Além da senha, o sistema pede um código do seu celular. É o que impede que alguém que descubra a sua senha veja os dados de saúde dos times. Se trocar de celular, adicione o novo antes de remover o antigo. Se perder o celular sem ter outro cadastrado, só o dono do projeto no Supabase consegue liberar o acesso.</p></div>
+        </div>
+        <div id="mfaLista" class="lista-mfa"></div>
+        <div class="linha"><button class="botao sec" id="btnMfaAdicionar" type="button"><i data-i="plus"></i>Adicionar outro celular</button></div>
+        <div class="contagem-car" id="mfaEquipe" style="text-align:left;margin-top:.625rem"></div>
       </div>
       <div class="cartao">
         <div class="cartao-topo">
           <div class="ladrilho p"><i data-i="message"></i></div>
-          <div><h3>Modelo de mensagem para os líderes</h3><p>Mande este modelo no grupo. Quando os líderes usam ele, o sistema lê tudo sem avisos.</p></div>
+          <div><h3>Mensagem padrão para os líderes</h3><p>Para times que mandam no WhatsApp: com este padrão o sistema lê tudo sem avisos.</p></div>
         </div>
-        <div class="linha" style="margin-bottom:12px">
-          <label style="display:flex;align-items:center;gap:10px;font-weight:600">Time <select id="modeloTime" style="width:auto;min-width:220px"></select></label>
+        <div class="linha" style="margin-bottom:.75rem">
+          <label class="rotulo" for="modeloTime" style="margin:0">Time</label>
+          <select id="modeloTime" style="width:auto;min-width:13.75rem"></select>
           <button class="botao" id="btnCopiarOrientacao"><i data-i="copy"></i>Copiar padrão completo (1ª vez)</button>
           <button class="botao sec" id="btnCopiarModelo"><i data-i="copy"></i>Copiar modelo em branco</button>
         </div>
         <div class="previa"><b>Modelo em branco (para o líder preencher todo dia)</b><pre id="previaModelo"></pre></div>
-        <div class="previa" style="margin-top:10px">
-          <b>Padrão completo com regras (mande uma vez no grupo) — pode editar</b> <span class="etiqueta" id="etiquetaTextoPadrao" hidden>texto seu</span>
-          <p style="margin:6px 0 8px;color:var(--fraco);font-size:14px">Mude o que quiser e clique em <strong>Salvar texto</strong>. <strong>{TIME}</strong> vira o time escolhido acima e <strong>{DATA}</strong> vira a data de hoje. O texto fica salvo na sua conta.</p>
-          <textarea id="textoPadrao" rows="22" spellcheck="false" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:14px"></textarea>
-          <div class="linha" style="margin-top:10px">
+        <div class="previa" style="margin-top:.75rem">
+          <b>Padrão completo com regras (mande uma vez no grupo): pode editar</b> <span class="etiqueta" id="etiquetaTextoPadrao" hidden>texto seu</span>
+          <p style="margin:.375rem 0 .5rem;color:var(--suave);font-size:.875rem">Mude o que quiser e clique em <strong>Salvar texto</strong>. <strong>{TIME}</strong> vira o time escolhido acima e <strong>{DATA}</strong> vira a data de hoje. O texto fica salvo na sua conta.</p>
+          <textarea id="textoPadrao" rows="22" spellcheck="false" aria-label="Padrão completo com regras" style="font-family:var(--mono);font-size:.875rem"></textarea>
+          <div class="linha" style="margin-top:.75rem">
             <button class="botao" id="btnSalvarTextoPadrao"><i data-i="save"></i>Salvar texto</button>
-            <button class="botao sec" id="btnRestaurarTextoPadrao"><i data-i="history"></i>Voltar ao texto original</button>
+            <button class="botao neutro" id="btnRestaurarTextoPadrao"><i data-i="history"></i>Voltar ao texto original</button>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="grade-2">
-      <div class="cartao">
-        <div class="cartao-topo">
-          <div class="ladrilho p vermelho"><i data-i="ban"></i></div>
-          <div><h3>Motivos que NÃO contam no % de absenteísmo</h3><p>Marque os motivos que não entram na porcentagem. A pessoa continua aparecendo na lista.</p></div>
-        </div>
-        <div class="checks" id="cfgNaoContam"></div>
       </div>
       <div class="cartao">
         <div class="cartao-topo">
@@ -797,31 +320,108 @@
         </div>
         <div id="cfgApelidos"></div>
       </div>
-    </div>
-    <div class="cartao" style="margin-top:18px">
-      <div class="cartao-topo">
-        <div class="ladrilho p"><i data-i="database"></i></div>
-        <div><h3>Guardar e levar os dados</h3><p>Os dados ficam na sua conta (sincronizados entre celular e computador) e também guardados neste aparelho. Um backup de vez em quando não faz mal.</p></div>
-      </div>
-      <div class="linha">
-        <button class="botao" id="btnBackup"><i data-i="download"></i>Baixar backup</button>
-        <label class="botao sec"><i data-i="upload"></i>Restaurar backup ou Excel<input type="file" id="arqBackup" accept=".json,.xlsx" hidden></label>
-        <button class="botao sec" id="btnCsvAusencias"><i data-i="table"></i>Planilha de ausências (CSV)</button>
-        <button class="botao sec" id="btnCsvFechamentos"><i data-i="table"></i>Planilha de totais por time (CSV)</button>
-        <span class="espaco"></span>
-        <button class="botao perigo" id="btnApagarTudo"><i data-i="trash"></i>Apagar todos os dados</button>
-      </div>
-    </div>
-  </section>
-</main>
+        <div class="cartao">
+          <div class="cartao-topo">
+            <div class="ladrilho p"><i data-i="database"></i></div>
+            <div><h3>Guardar e levar os dados</h3><p>Os dados ficam na sua conta (sincronizados entre aparelhos) e neste aparelho. Um backup de vez em quando não faz mal. Os arquivos baixados incluem tudo o que os líderes lançaram, desde o começo.</p></div>
+          </div>
+          <div class="caixa-aviso amarelo" style="margin-top:0"><i data-i="alert"></i><span>Estes arquivos têm dados de saúde (atestados). Guarde num lugar seguro, não envie a quem não precisa e apague quando não forem mais necessários.</span></div>
+          <div class="contagem-car" id="lembreteBackup" style="text-align:left;margin:.5rem 0"></div>
+          <div class="linha">
+            <button class="botao" id="btnBackup"><i data-i="download"></i>Baixar backup</button>
+            <label class="botao sec"><i data-i="upload"></i>Restaurar backup ou Excel<input type="file" id="arqBackup" accept=".json,.xlsx" hidden></label>
+            <button class="botao neutro" id="btnCsvAusencias"><i data-i="table"></i>Ausências (CSV)</button>
+            <button class="botao neutro" id="btnCsvFechamentos"><i data-i="table"></i>Totais por time (CSV)</button>
+            <button class="botao neutro" id="btnCsvLideres" hidden><i data-i="table"></i>Lançamentos dos líderes (CSV)</button>
+            <span class="espaco"></span>
+            <button class="botao perigo" id="btnApagarTudo"><i data-i="trash"></i>Apagar todos os dados</button>
+          </div>
+        </div>
+      </section>
 
-<div id="toast"></div>
+      <!-- LÍDER: lançar ausência e atraso do time -->
+      <div id="areaLider" hidden></div>
+    </main>
+  </div>
+</div>
+
+<!-- ENTRAR -->
+<div id="telaLogin" hidden>
+  <div class="login">
+    <div class="logo" aria-hidden="true"><i data-i="users"></i></div>
+    <h1>Absenteísmo dos times</h1>
+    <p class="sub" id="subLogin">Entre com seu usuário e senha.</p>
+    <div class="cartao">
+      <form id="formLogin" autocomplete="on">
+        <div><label class="rotulo" for="loginEmail">Usuário ou e-mail</label><input id="loginEmail" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></div>
+        <div id="campoSenha"><label class="rotulo" for="loginSenha">Senha</label><input id="loginSenha" type="password" autocomplete="current-password" minlength="6" required></div>
+        <div id="campoSenha2" hidden><label class="rotulo" for="loginSenha2">Repita a senha</label><input id="loginSenha2" type="password" autocomplete="new-password" minlength="6"></div>
+        <div class="caixa-aviso msg-login" id="msgLogin" role="alert"></div>
+        <button class="botao g" type="submit" id="btnEntrar">Entrar</button>
+        <div class="links">
+          <button type="button" class="link" id="lnkEsqueci">Esqueci a senha</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- SEGUNDO PASSO (supervisor): cadastrar o celular ou digitar o código -->
+<div id="telaMfa" class="tela-cheia" hidden role="dialog" aria-modal="true" aria-labelledby="mfaTitulo">
+  <div class="login">
+    <div class="logo" aria-hidden="true"><i data-i="shield"></i></div>
+    <h1 id="mfaTitulo">Digite o código</h1>
+    <p class="sub" id="mfaSub"></p>
+    <div class="cartao">
+      <div id="mfaCadastro" hidden>
+        <ol class="passos-mfa">
+          <li>Instale no celular um aplicativo de códigos: Google Authenticator, Microsoft Authenticator ou Authy.</li>
+          <li>No aplicativo, adicione uma conta e aponte a câmera para o quadro abaixo.</li>
+          <li>Digite aqui o código de 6 números que o aplicativo mostrar.</li>
+        </ol>
+        <div class="qr"><img id="mfaQr" alt="Quadro para o aplicativo de códigos ler com a câmera" width="192" height="192" hidden><span id="mfaSemQr" class="suave" hidden>Não consegui desenhar o quadro. Use a chave abaixo.</span></div>
+        <details class="detalhe-imp"><summary>Não consigo ler o quadro</summary><p style="margin:.25rem 0">No aplicativo, escolha digitar uma chave e cole esta:</p><code id="mfaChave" class="chave-mfa"></code></details>
+        <div class="caixa-aviso amarelo"><i data-i="alert"></i><span>Guarde o celular. Se perder, e não tiver outro cadastrado, só o dono do projeto no Supabase consegue liberar o seu acesso.</span></div>
+      </div>
+      <form id="formMfa" autocomplete="off">
+        <div><label class="rotulo" for="mfaCodigo">Código de 6 números</label><input id="mfaCodigo" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="9" autocomplete="one-time-code" required></div>
+        <div class="caixa-aviso msg-login" id="msgMfa" role="alert"></div>
+        <button class="botao g" type="submit" id="btnMfa">Confirmar</button>
+        <div class="links"><button type="button" class="link" id="lnkMfaSair">Sair desta conta</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- CRIAR / TROCAR A PRÓPRIA SENHA -->
+<div id="telaSenha" class="tela-cheia" hidden role="dialog" aria-modal="true" aria-labelledby="senhaTitulo">
+  <div class="login">
+    <div class="logo" aria-hidden="true"><i data-i="key"></i></div>
+    <h1 id="senhaTitulo">Trocar minha senha</h1>
+    <p class="sub" id="senhaSub"></p>
+    <div class="cartao">
+      <form id="formSenha" autocomplete="off">
+        <div><label class="rotulo" for="senhaNova">Senha nova</label><input id="senhaNova" type="password" autocomplete="new-password" minlength="10" maxlength="72" required></div>
+        <div><label class="rotulo" for="senhaNova2">Repita a senha nova</label><input id="senhaNova2" type="password" autocomplete="new-password" minlength="10" maxlength="72" required></div>
+        <div class="contagem-car" id="senhaDica" style="text-align:left"></div>
+        <div class="caixa-aviso msg-login" id="msgSenha" role="alert"></div>
+        <button class="botao g" type="submit" id="btnSenha">Salvar minha senha</button>
+        <div class="links"><button type="button" class="link" id="lnkSenhaDepois">Agora não</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js" integrity="sha384-AkNSQdptcXlJ0/NBZc4qGk86cDVXcCevwoWgEKIpHOEfbvlXGLlIkimQtONt8KNf" crossorigin="anonymous"></script>
 <script src="config.js"></script>
 <script src="leitor.js"></script>
 <script src="excel.js"></script>
 <script src="sincronia.js"></script>
+<script src="lideres.js"></script>
+<script src="painel.js"></script>
+<script src="acesso.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

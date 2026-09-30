@@ -96,23 +96,24 @@ test('texto para o superior junta todos os times no modelo da SUB MONTAGEM', () 
   for (const m of ms) b = L.gravar(b, m);
   const txt = L.textoSuperior(L.resumoDoDia(b, '2026-09-24'), 'Sub Montagem Turno B');
   const linhas = txt.split('\n');
-  assert.deepEqual(linhas.slice(0, 14), [
+  assert.deepEqual(linhas.slice(0, 15), [
     'ABSENTEÍSMO SUB MONTAGEM TURNO B 24/09/26',
     '',
-    '- Efetivo previsto: 90 colaboradores',
-    '- Atestados médicos: 8',
-    '- Atraso de roteiro: 0',
-    '- Atraso por motivo pessoal: 0',
-    '- Atraso sem justificativa: 0',
-    '- Faltas: 8',
-    '- Faltas sem justificativa: 0',
-    '- Afastamento INSS: 0',
-    '- Turno ADM: 0',
-    '- Férias: 0',
-    '- Total presente: 82 colaboradores',
+    '* Efetivo previsto: 90 colaboradores',
+    '* Atestados médicos: 8',
+    '* Atraso de roteiro: 0',
+    '* Atraso por motivo pessoal: 0',
+    '* Atraso sem justificativa: 0',
+    '* Total de ausentes: 8',
+    '* Faltas: 8',
+    '* Faltas sem justificativa: 0',
+    '* Afastamento INSS: 0',
+    '* Turno ADM: 0',
+    '* Férias: 0',
+    '* Total presente: 82 colaboradores',
     '',
   ]);
-  assert.deepEqual(linhas.slice(14, 18), ['Walter Teste', 'ID: 1000001', 'Equipe: C1B', 'Motivo: Atestado médico']);
+  assert.deepEqual(linhas.slice(15, 19), ['Walter Teste', 'ID: 1000001', 'Equipe: C1B', 'Motivo: Atestado médico']);
   // O próprio sistema lê esse texto de volta sem avisos
   const [volta] = L.lerMensagens(txt, { ano: 2026 });
   assert.equal(volta.time, 'SUB MONTAGEM TURNO B');
@@ -129,6 +130,63 @@ test('texto para o superior sem nomes: só os números', () => {
   const sem = L.textoSuperior(r, 'Sub Montagem Turno B', { comNomes: false });
   assert.match(com, /Walter Teste\nID: 1000001/);
   assert.doesNotMatch(sem, /Walter Teste|ID:|Motivo:/);
-  assert.ok(sem.endsWith('- Total presente: 70 colaboradores'));
-  assert.equal(sem, com.split('\n').slice(0, 13).join('\n'));
+  assert.ok(sem.endsWith('* Total presente: 70 colaboradores'));
+  assert.equal(sem, com.split('\n').slice(0, 14).join('\n'));
+});
+
+test('texto para o superior: cabeçalho padrão, Total de ausentes e Faltas (Férias não conta no %)', () => {
+  const base = L.baseVazia(); base.config.naoContam = ['Férias'];
+  const ms = L.lerMensagens('*Absenteísmo C1B 24/09/2026*\n*Total de pessoas:* 20\n*Presentes:* 17\n*Ausentes:* 3\n\n*Nome:* Ana Teste\n*Matrícula:* 1000001\n*Motivo:* Atestado médico\n\n*Nome:* Bia Teste\n*Matrícula:* 1000002\n*Motivo:* Sem justificativa\n\n*Nome:* Cai Teste\n*Matrícula:* 1000003\n*Motivo:* Férias', { ano: 2026 });
+  let b = base; for (const m of ms) b = L.gravar(b, m);
+  const txt = L.textoSuperior(L.resumoDoDia(b, '2026-09-24'), undefined, { comNomes: false });
+  const linhas = txt.split('\n');
+  assert.equal(linhas[0], 'ABSENTEÍSMO CHASSI/SUB-MONTAGEM 24/09/26'); // área padrão quando nada foi configurado
+  assert.ok(linhas.includes('* Total de ausentes: 3'));
+  assert.ok(linhas.includes('* Faltas: 2')); // a pessoa de férias não conta
+  assert.ok(linhas.includes('* Férias: 1'));
+  assert.ok(linhas.includes('* Faltas sem justificativa: 1'));
+  assert.equal(linhas[linhas.length - 1], '* Total presente: 17 colaboradores');
+});
+
+test('o indicador de cada linha do texto é o mesmo que a tela mostra', () => {
+  let b = L.baseVazia();
+  for (const m of L.lerMensagens(COLADO, { ano: 2026 }).slice(2)) b = L.gravar(b, m);
+  const r = L.resumoDoDia(b, '2026-09-24');
+  const ind = L.indicadores(r);
+  assert.deepEqual(ind.map(i => i.rotulo), ['Efetivo previsto', 'Atestados médicos', 'Atraso de roteiro', 'Atraso por motivo pessoal', 'Atraso sem justificativa',
+    'Total de ausentes', 'Faltas', 'Faltas sem justificativa', 'Afastamento INSS', 'Turno ADM', 'Férias', 'Total presente']);
+  const txt = L.textoSuperior(r, 'X', { comNomes: false }).split('\n');
+  for (const i of ind) assert.ok(txt.includes(`* ${i.rotulo}: ${i.valor}${i.unidade ? ' ' + i.unidade : ''}`), i.rotulo);
+});
+
+test('lendo de volta: "Total de ausentes" vale mais que "Faltas"', () => {
+  const txt = ['ABSENTEÍSMO CHASSI/SUB-MONTAGEM 29/09/26', '', '* Efetivo previsto: 297 colaboradores', '* Atestados médicos: 5', '* Atraso de roteiro: 9',
+    '* Atraso por motivo pessoal: 2', '* Atraso sem justificativa: 0', '* Total de ausentes: 19', '* Faltas: 18', '* Faltas sem justificativa: 5',
+    '* Afastamento INSS: 0', '* Turno ADM: 0', '* Férias: 1', '* Total presente: 278 colaboradores'].join('\n');
+  const [m] = L.lerMensagens(txt, { ano: 2026 });
+  assert.deepEqual([m.efetivo, m.presentes, m.ausentes], [297, 278, 19]);
+});
+
+test('efetivo previsto ajustado: o texto e os indicadores usam o valor; presentes = previsto − ausentes', () => {
+  let b = L.baseVazia();
+  for (const m of L.lerMensagens(COLADO, { ano: 2026 }).slice(2)) b = L.gravar(b, m); // C7B e C1B
+  const r = L.resumoDoDia(b, '2026-09-24');
+  assert.equal(L.comEfetivoPrevisto(r, null), r);            // sem ajuste: nada muda
+  assert.equal(L.comEfetivoPrevisto(r, r.efetivo), r);
+  const aj = L.comEfetivoPrevisto(r, 297);
+  assert.deepEqual([aj.efetivo, aj.efetivoAuto, aj.ausentes, aj.presentes], [297, r.efetivo, r.ausentes, 297 - r.ausentes]);
+  assert.ok(Math.abs(aj.absenteismo - r.faltasQueContam / 297) < 1e-9);
+  const linhas = L.textoSuperior(aj, 'X', { comNomes: false }).split('\n');
+  assert.ok(linhas.includes('* Efetivo previsto: 297 colaboradores'));
+  assert.equal(linhas[linhas.length - 1], `* Total presente: ${297 - r.ausentes} colaboradores`);
+  assert.equal(L.comEfetivoPrevisto(r, 3).presentes >= 0, true); // valor menor que os ausentes não dá presentes negativos
+});
+
+test('a configuração do efetivo previsto passa pela limpeza (só valores válidos entram)', () => {
+  const ok = L.sanearBase({ fechamentos: {}, config: { efetivoModo: 'fixo', efetivoFixo: '297' } });
+  assert.equal(ok.config.efetivoModo, 'fixo'); assert.equal(ok.config.efetivoFixo, 297);
+  const ruim = L.sanearBase({ fechamentos: {}, config: { efetivoModo: 'hackeado', efetivoFixo: -5 } });
+  assert.equal(ruim.config.efetivoModo, undefined); assert.equal(ruim.config.efetivoFixo, undefined);
+  const enorme = L.sanearBase({ fechamentos: {}, config: { efetivoModo: 'cadastro', efetivoFixo: 1e9 } });
+  assert.equal(enorme.config.efetivoModo, 'cadastro'); assert.equal(enorme.config.efetivoFixo, undefined);
 });

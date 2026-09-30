@@ -54,6 +54,9 @@ if (window.top !== window.self) {
     nuvemOff: '<path d="m2 2 20 20M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.2M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10.2 5.1"/>',
     chevron: '<path d="m6 9 6 6 6-6"/>',
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    key: '<path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
   };
   const ic = (n, extra) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"${extra ? ' ' + extra : ''}>${ICONES[n] || ''}</svg>`;
   function trocarIcones(raiz) {
@@ -72,6 +75,8 @@ if (window.top !== window.self) {
     return completar(L.baseVazia());
   }
   let base = carregar();
+  // Base para mostrar nos relatórios: a do supervisor + o que os líderes enviaram (não é salva)
+  const vista = () => (window.Painel ? window.Painel.mesclar(base) : base);
   function guardarLocal() {
     try { localStorage.setItem(CHAVE, JSON.stringify(base)); }
     catch (e) { alert('Não consegui salvar no aparelho. Baixe um backup em Ajustes.'); }
@@ -96,9 +101,11 @@ if (window.top !== window.self) {
   const pctDe = (a, b) => L.pct(a, b);
   function aviso(txt) {
     const t = $('#toast'); t.textContent = txt; t.classList.add('mostrar');
-    clearTimeout(aviso.t); aviso.t = setTimeout(() => t.classList.remove('mostrar'), 2800);
+    clearTimeout(aviso.t); aviso.t = setTimeout(() => t.classList.remove('mostrar'), Math.max(4500, txt.length * 70));
   }
+  $('#toast').addEventListener('click', () => $('#toast').classList.remove('mostrar'));
   function baixar(nome, conteudo, tipo) {
+    if (/^absenteismo-/.test(nome)) gravarPreferencia('ultimoBackup', String(Date.now()));   // backup ou Excel completo
     const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
     const a = document.createElement('a'); a.href = url; a.download = nome;
     document.body.appendChild(a); a.click(); a.remove();
@@ -111,8 +118,33 @@ if (window.top !== window.self) {
       t.select(); const ok = document.execCommand('copy'); t.remove(); return ok;
     }
   }
+  // Abre o WhatsApp com o texto pronto. O link do WhatsApp tem limite de tamanho: acima dele, copia e abre o WhatsApp vazio.
+  function abrirWhatsApp(texto) {
+    const D = window.Lideres;
+    if (D.cabeNoLink(texto)) { window.open(D.whatsappUrl(texto), '_blank', 'noopener,noreferrer'); return; }
+    const copiando = copiar(texto);
+    window.open('https://wa.me/', '_blank', 'noopener,noreferrer');
+    copiando.then(ok => aviso(ok ? 'O texto é grande: copiei. Abra a conversa e cole.' : 'O texto é grande demais para o link. Copie e cole na conversa.'));
+  }
+
+  // O que os líderes lançaram (histórico completo), para exportar. Sem internet, exporta o que já estava carregado.
+  async function dadosDosLideres() {
+    const P = window.Painel;
+    if (!P || !P.ehSupervisor()) return null;
+    let d = P.dadosCarregados();
+    try { d = await P.carregarTudo(); } catch (e) { /* usa o que já estava carregado */ }
+    return { lancamentos: d.lancs, envios: d.envios, baseCompleta: P.mesclar(base) };
+  }
+  // Para o Excel que se salva sozinho: só o que já está carregado (sem esperar rede)
+  function extraExcelAtual() {
+    const P = window.Painel;
+    if (!P || !P.ehSupervisor() || !P.temDados()) return undefined;
+    const d = P.dadosCarregados();
+    return { lancamentos: d.lancs, envios: d.envios, baseCompleta: P.mesclar(base) };
+  }
+
   function ultimaData() {
-    const ds = Object.values(base.fechamentos).map(f => f.data).sort();
+    const ds = Object.values(vista().fechamentos).map(f => f.data).sort();
     return ds.length ? ds[ds.length - 1] : hoje();
   }
   function vazio(icone, titulo, sub) {
@@ -168,7 +200,7 @@ if (window.top !== window.self) {
       if (perm !== 'granted' && interativo) perm = await arquivoExcel.requestPermission({ mode: 'readwrite' });
       if (perm !== 'granted') { excel.estado = 'permissao'; return false; }
       const w = await arquivoExcel.createWritable();
-      await w.write(X.gerarExcel(base));
+      await w.write(X.gerarExcel(base, undefined, extraExcelAtual()));
       await w.close();
       excel.estado = 'ok'; excel.hora = new Date();
       return true;
@@ -214,24 +246,35 @@ if (window.top !== window.self) {
     if (!arquivoExcel) return escolherArquivoExcel();
     if (await salvarExcel(true)) aviso('Excel salvo.');
   });
-  $('#btnBaixarExcel').addEventListener('click', () =>
-    baixar(`absenteismo-${hoje()}.xlsx`, X.gerarExcel(base), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+  $('#btnBaixarExcel').addEventListener('click', async () => {
+    const extra = await dadosDosLideres();
+    baixar(`absenteismo-${hoje()}.xlsx`, X.gerarExcel(base, undefined, extra || undefined), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
 
   // ---------- abas ----------
   function irPara(aba) {
-    document.querySelectorAll('nav .passo').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
+    document.querySelectorAll('#abas .passo[data-aba]').forEach(b => {
+      const ativo = b.dataset.aba === aba || (b.dataset.tambem || '').split(' ').includes(aba);
+      if (ativo) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     document.querySelectorAll('main section.aba').forEach(s => s.classList.toggle('ativa', s.id === 'aba-' + aba));
     if (aba === 'colar') desenharColar();
     if (aba === 'conferencia') desenharConferencia();
     if (aba === 'dia') desenharDia();
     if (aba === 'historico') { desenharBusca(); desenharPeriodo(); }
     if (aba === 'ajustes') desenharAjustes();
+    if (window.Painel && window.Painel.ABAS.includes(aba)) {
+      if (aba === 'recebidos') window.Painel.sincronizarDataRecebidos();
+      window.Painel.desenhar(aba);
+    }
     window.scrollTo(0, 0);
   }
-  $('#abas').addEventListener('click', e => { const b = e.target.closest('.passo'); if (b) irPara(b.dataset.aba); });
+  $('#abas').addEventListener('click', e => { const b = e.target.closest('.passo[data-aba]'); if (b) irPara(b.dataset.aba); });
+  document.addEventListener('click', e => { const b = e.target.closest('[data-ir]'); if (b) irPara(b.dataset.ir); });
+  $('#btnMenuAjustes').addEventListener('click', () => { $('#menuUsuario').hidden = true; irPara('ajustes'); });
 
   function atualizarContador() {
-    const n = $('#nPendentes'); n.textContent = fila.length; n.hidden = !fila.length;
+    for (const id of ['#nPendentes', '#nPendentesSeg', '#nPendentesSeg2']) { const n = $(id); n.textContent = fila.length; n.hidden = !fila.length; }
   }
 
   // ---------- 1. Colar ----------
@@ -256,28 +299,20 @@ if (window.top !== window.self) {
   }
 
   function desenharColar() {
-    const times = base.config.times.length;
+    const times = vista().config.times.length;
     const ultima = lerPreferencia('ultimaLeitura');
-    let rotUltima = 'Nenhuma leitura ainda', valUltima = '—';
+    let ultimaTxt = 'nenhuma leitura ainda';
     if (ultima) {
       const u = new Date(ultima);
       const hh = u.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const ehHoje = u.toDateString() === new Date().toDateString();
-      rotUltima = ehHoje ? 'Última leitura hoje' : 'Última leitura em ' + u.toLocaleDateString('pt-BR');
-      valUltima = hh;
+      ultimaTxt = u.toDateString() === new Date().toDateString() ? 'hoje às ' + hh : u.toLocaleDateString('pt-BR') + ' às ' + hh;
     }
-    const r = L.resumoDoDia(base, hoje());
-    $('#numerosColar').innerHTML = `
-      <div class="numero"><div class="ladrilho">${ic('fileText')}</div>
-        <div>${times ? `<span class="grande">${times}</span> <span class="t">times esperados</span><div class="s">Conforme os Ajustes</div>`
-          : '<div class="t">Times esperados</div><div class="s">Cadastre os times em Ajustes</div>'}</div></div>
-      <div class="numero"><div class="ladrilho">${ic('clock')}</div>
-        <div><div class="s">${esc(rotUltima)}</div><div class="grande">${esc(valUltima)}</div><div class="s"><span class="ponto"></span>Sistema pronto</div></div></div>
-      <div class="numero"><div class="ladrilho ${fila.length ? 'amarelo' : 'verde'}">${ic(fila.length ? 'alert' : 'check')}</div>
-        <div>${fila.length ? `<div class="t">${fila.length} esperando conferência</div><div class="s">Revise na etapa 2 antes de gravar.</div>`
-          : '<div class="t">Pronto para conferência</div><div class="s">As mensagens serão analisadas e organizadas automaticamente.</div>'}</div></div>
-      <div class="numero"><div class="ladrilho">${ic('chart')}</div>
-        <div><div class="s">Total do dia (já gravado)</div><div class="grande">${r.efetivo}</div><div class="s">pessoas · ${r.recebidos.length} time(s) hoje</div></div></div>`;
+    const r = L.resumoDoDia(vista(), hoje());
+    $('#numerosColar').innerHTML =
+      `<span>Última leitura: <b>${esc(ultimaTxt)}</b></span>` +
+      `<span>Times esperados: <b>${times || 'nenhum cadastrado'}</b></span>` +
+      `<span>Hoje já gravado: <b>${r.efetivo}</b> pessoas em <b>${r.recebidos.length}</b> time(s)</span>` +
+      (fila.length ? `<span>Esperando conferência: <b>${fila.length}</b></span>` : '');
     $('#textoExemplo').textContent = textoExemplo();
     previaImportacao();
   }
@@ -288,7 +323,7 @@ if (window.top !== window.self) {
     $('#contagemCar').textContent = `${texto.length.toLocaleString('pt-BR')} caracteres`;
     const lidas = texto.trim() ? L.lerMensagens(texto, { ano: new Date().getFullYear(), apelidos: base.config.apelidos, times: base.config.times }) : [];
     const exemplo = texto.trim() === textoExemplo().trim();
-    const pend = lidas.filter(m => exemplo || L.conferir(m, base, base.config).status !== 'verde').length;
+    const pend = lidas.filter(m => exemplo || L.conferir(m, vista(), vista().config).status !== 'verde').length;
     const total = lidas.reduce((s, m) => s + (m.efetivo || 0), 0);
     const quais = lidas.map(m => m.time || '?').join(', ');
     $('#resumoImportacao').innerHTML = `
@@ -329,7 +364,7 @@ if (window.top !== window.self) {
 
   // ---------- 2. Conferência ----------
   function conferirComData(m) {
-    const c = L.conferir(m, base, base.config);
+    const c = L.conferir(m, vista(), vista().config);
     if (m.exemplo) {
       c.problemas.unshift({ nivel: 'vermelho', texto: 'Esta é a mensagem de EXEMPLO. Serve só para ver como funciona: descarte, não grave.' });
       c.status = 'vermelho';
@@ -372,13 +407,13 @@ if (window.top !== window.self) {
       </div>
       <div class="avisos">${avisosHTML(c)}</div>
       <div class="campos">
-        <div><label class="rotulo">Time</label><input data-campo="time" value="${esc(m.time || '')}" placeholder="ex.: C5B"></div>
-        <div><label class="rotulo">Data</label><input type="date" data-campo="data" value="${esc(m.data || '')}">
+        <div><label class="rotulo">Time</label><input data-campo="time" aria-label="Time" value="${esc(m.time || '')}" placeholder="ex.: C5B"></div>
+        <div><label class="rotulo">Data</label><input type="date" data-campo="data" aria-label="Data" value="${esc(m.data || '')}">
           ${m.data ? '' : `<button class="botao sec p" data-acao="hoje" style="margin-top:6px">Usar hoje</button>`}</div>
-        <div><label class="rotulo">Turno</label><select data-campo="turno"><option value="">Selecione...</option>${turnos.map(t => `<option${t === m.turno ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
-        <div><label class="rotulo">Total de pessoas</label><input type="number" min="0" data-campo="efetivo" value="${m.efetivo ?? ''}"></div>
-        <div><label class="rotulo">Presentes</label><input type="number" min="0" data-campo="presentes" value="${m.presentes ?? ''}"></div>
-        <div><label class="rotulo">Ausentes (conta)</label><input disabled class="aus-conta" value="${ausConta}"></div>
+        <div><label class="rotulo">Turno</label><select data-campo="turno" aria-label="Turno"><option value="">Selecione...</option>${turnos.map(t => `<option${t === m.turno ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+        <div><label class="rotulo">Total de pessoas</label><input type="number" min="0" inputmode="numeric" data-campo="efetivo" aria-label="Total de pessoas" value="${m.efetivo ?? ''}"></div>
+        <div><label class="rotulo">Presentes</label><input type="number" min="0" inputmode="numeric" data-campo="presentes" aria-label="Presentes" value="${m.presentes ?? ''}"></div>
+        <div><label class="rotulo">Ausentes (conta)</label><input disabled class="aus-conta" aria-label="Ausentes (conta)" value="${ausConta}"></div>
       </div>
       <hr>
       <div class="ausentes-titulo">${ic('users')}Pessoas ausentes (${m.pessoas.length})</div>
@@ -388,11 +423,11 @@ if (window.top !== window.self) {
         <tbody>
           ${m.pessoas.map((p, i) => `
           <tr data-i="${i}">
-            <td data-rot="Nome"><input data-p="nome" value="${esc(p.nome)}" placeholder="Nome"></td>
-            <td data-rot="Matrícula"><input data-p="matricula" value="${esc(p.matricula)}" inputmode="numeric" placeholder="Matrícula"></td>
-            <td data-rot="Motivo"><select data-p="motivo">${opcoesMotivo(p.motivo)}</select></td>
-            <td data-rot="Escrito pelo líder"><input disabled value="${esc(p.motivoOriginal)}"></td>
-            <td><button class="botao perigo icone" data-acao="tirarPessoa" title="Remover pessoa">${ic('trash')}</button></td>
+            <td data-rot="Nome"><input data-p="nome" aria-label="Nome" value="${esc(p.nome)}" placeholder="Nome"></td>
+            <td data-rot="Matrícula"><input data-p="matricula" aria-label="Matrícula" value="${esc(p.matricula)}" inputmode="numeric" placeholder="Matrícula"></td>
+            <td data-rot="Motivo"><select data-p="motivo" aria-label="Motivo">${opcoesMotivo(p.motivo)}</select></td>
+            <td data-rot="Escrito pelo líder"><input disabled aria-label="Escrito pelo líder" value="${esc(p.motivoOriginal)}"></td>
+            <td><button class="botao perigo icone" data-acao="tirarPessoa" title="Remover pessoa" aria-label="Remover pessoa">${ic('trash')}</button></td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -543,31 +578,93 @@ if (window.top !== window.self) {
   });
 
   // ---------- 3. Dia ----------
+  // Título do texto para o superior: a área do Ajustes, ou CHASSI/SUB-MONTAGEM enquanto ninguém configurar outra
+  const areaDoTexto = () => base.config.area || L.AREA_PADRAO;
+  // Efetivo previsto: automático (soma dos times que enviaram), total do cadastro ou valor fixo (Ajustes)
+  function efetivoPrevistoConfig() {
+    const c = base.config;
+    if (c.efetivoModo === 'fixo' && c.efetivoFixo > 0) return c.efetivoFixo;
+    if (c.efetivoModo === 'cadastro') { const n = window.Painel ? window.Painel.totalCadastro() : 0; return n > 0 ? n : null; }
+    return null;
+  }
+  const resumoAjustado = data => L.comEfetivoPrevisto(L.resumoDoDia(vista(), data), efetivoPrevistoConfig());
+
+  // O texto do superior: os indicadores do modelo + nomes (se ligado) + atrasos em aberto e saídas antecipadas
+  function textoSuperiorDoDia(data) {
+    const r = resumoAjustado(data);
+    const extras = window.Painel ? window.Painel.blocoExtras(data) : '';
+    return L.textoSuperior(r, areaDoTexto(), { comNomes: lerPreferencia('nomesSuperior') !== 'nao' }) + (extras ? '\n' + extras : '');
+  }
+  // Texto para o superior editável: desmarcando "Texto automático" a pessoa altera o texto quando quiser.
+  // A edição vale nas telas Recebidos e Fechamento e sincroniza entre os aparelhos do supervisor.
+  const textoEditado = data => window.Painel.textoEditado(data);
+  const guardarTextoEditado = (data, t) => window.Painel.guardarTextoEditado(data, t);
+  const apagarTextoEditado = data => window.Painel.apagarTextoEditado(data);
+  const textoSuperiorAtual = data => { const e = textoEditado(data); return e != null ? e : textoSuperiorDoDia(data); };
+  function textoSuperiorHTML(data) {
+    const editado = textoEditado(data);
+    return `<div class="texto-sup" data-texto-sup="${esc(data)}">
+      <label class="opcao"><input type="checkbox" data-texto-auto ${editado == null ? 'checked' : ''}> Texto automático</label>
+      <div class="dica-texto">${editado == null ? 'Desmarque para alterar o texto como quiser.' : 'Você está editando este texto: ele não muda sozinho quando chegam novos lançamentos. Marque “Texto automático” para voltar aos números atuais.'}</div>
+      ${editado == null ? `<pre class="whats">${esc(textoSuperiorDoDia(data))}</pre>`
+        : `<textarea data-texto-area rows="20" spellcheck="false" aria-label="Texto para o superior (editável)">\n${esc(editado)}</textarea>`}
+    </div>`;
+  }
+  function ligarTextoSuperior(raiz, data, redesenhar) {
+    const caixa = raiz.querySelector('[data-texto-sup]'); if (!caixa) return;
+    caixa.querySelector('[data-texto-auto]').addEventListener('change', e => {
+      if (!e.target.checked) guardarTextoEditado(data, textoSuperiorDoDia(data));
+      else {
+        if (!confirm('Voltar ao texto automático? As suas alterações deste texto serão descartadas.')) { e.target.checked = false; return; }
+        apagarTextoEditado(data);
+      }
+      redesenhar();
+    });
+    const area = caixa.querySelector('[data-texto-area]');
+    if (area) area.addEventListener('input', () => guardarTextoEditado(data, area.value));
+  }
+
+  // Indicadores do dia: os mesmos nomes e números do texto para o superior (zeros ficam apagados para a leitura rápida)
+  function indicadoresHTML(r, extras) {
+    const acima = L.acimaDaMeta(r.faltasQueContam, r.efetivo, r.meta);
+    const tile = i => `<div class="ind${i.forte ? ' forte' : ''}${i.valor ? '' : ' zero'}${i.chave === 'ausentes' && i.valor ? ' alerta' : ''}">
+        <div class="rot">${esc(i.rotulo)}</div><div class="valor">${i.valor}${i.unidade ? `<small>${esc(i.unidade)}</small>` : ''}</div></div>`;
+    const mais = (extras || []).filter(x => x.valor);
+    return `<div class="cartao">
+      <div class="cartao-topo"><div><h3>Indicadores do dia</h3><p>Os mesmos números do texto para o superior.</p></div></div>
+      <div class="ind-destaque">
+        <div><div class="rot">Absenteísmo${r.meta ? ` (meta ${L.pctMeta(r.meta)})` : ''}</div><div class="valor${acima ? ' acima' : ''}">${L.pct(r.faltasQueContam, r.efetivo)}</div></div>
+        <div class="det">${r.faltasQueContam} de ${r.efetivo} pessoas</div>
+      </div>
+      ${r.efetivoAuto ? `<div class="ind-nota">Efetivo previsto ajustado em Ajustes (a soma dos times que enviaram seria ${r.efetivoAuto}).</div>` : ''}
+      <div class="ind-grade">${L.indicadores(r).map(tile).join('')}</div>
+      ${mais.length ? `<div class="ind-extras"><span>Além do modelo:</span> ${mais.map(x => `<span class="chip andamento">${esc(x.rotulo)}: <b>${x.valor}</b></span>`).join('')}</div>` : ''}
+    </div>`;
+  }
+
   function desenharDia() {
     if (!$('#dataDia').value) $('#dataDia').value = ultimaData();
     const data = $('#dataDia').value;
-    const r = L.resumoDoDia(base, data);
+    const r = L.resumoDoDia(vista(), data);
     const alvo = $('#conteudoDia');
     const comNomes = !!desenharDia.comNomes;
     const cobranca = L.textoCobranca(r);
-    const cadastrados = base.config.times.length;
+    const cadastrados = vista().config.times.length;
     const pctRecebido = r.esperados ? Math.round(r.recebidos.length / r.esperados * 100) : 0;
 
+    const listaTimes = vista().config.times.length ? vista().config.times.slice().sort(ordenarTimes) : r.recebidos;
+    const completo = listaTimes.length > 0 && listaTimes.every(t => r.recebidos.includes(t));
+    const segs = listaTimes.map((t, i) => `<span class="seg ${r.recebidos.includes(t) ? 'ok' : 'falta'}" style="--i:${i}" title="${esc(t)}"></span>`).join('');
+    const tituloFecho = !cadastrados ? 'Sem lista de times' : completo ? 'Todos os times enviaram' : `Faltam ${r.pendentes.length}: ${r.pendentes.slice(0, 4).join(', ')}${r.pendentes.length > 4 ? '…' : ''}`;
     const mandouHTML = `
-      <div class="cartao">
-        <div class="mandou">
-          <div class="ladrilho p verde">${ic('check')}</div>
-          <div class="texto">
-            <h3 style="margin:0 0 2px;font-size:18px">Quem já mandou</h3>
-            <div style="color:var(--suave);font-size:14px;margin-bottom:8px">${cadastrados ? `${r.recebidos.length} de ${cadastrados} times cadastrados.` : 'Cadastre os times em Ajustes para ver quem falta.'}</div>
-            ${chipsHTML(r)}
-          </div>
-          <div class="resumo-tiles">
-            <div class="tile verde"><div class="ladrilho p verde">${ic('check')}</div><div><b>${r.recebidos.length} time(s) enviaram</b><span>${cadastrados ? pctRecebido + '% concluído' : '—'}</span></div></div>
-            <div class="tile amarelo"><div class="ladrilho p amarelo">${ic('clock')}</div><div><b>${r.pendentes.length} time(s) pendentes</b><span>${cadastrados ? `de ${cadastrados} cadastrados` : 'sem lista de times'}</span></div></div>
-          </div>
+      <div class="cartao fecho ${completo ? 'completo' : ''}">
+        <div class="fecho-topo">
+          <div class="fecho-num">${r.recebidos.length}<small>/${listaTimes.length}</small></div>
+          <div class="fecho-txt"><b>${esc(tituloFecho)}</b><span>${cadastrados ? 'times enviaram o fechamento' : 'Cadastre os times em Ajustes para ver quem falta.'}</span></div>
         </div>
-        ${cobranca ? `<div class="linha nao-imprimir" style="margin-top:14px"><button class="botao sec" id="btnCobranca">${ic('megafone')}Copiar cobrança para quem não mandou</button></div>` : ''}
+        ${listaTimes.length ? `<div class="segs" role="img" aria-label="${r.recebidos.length} de ${listaTimes.length} times enviaram">${segs}</div>` : ''}
+        ${chipsHTML(r)}
+        ${cobranca ? `<div class="linha nao-imprimir"><button class="botao sec" id="btnCobranca">${ic('megafone')}Copiar cobrança para quem não mandou</button><button class="botao neutro" id="btnCobrancaWhats">${ic('message')}Cobrar no WhatsApp</button></div>` : ''}
       </div>`;
 
     if (!r.times.length) {
@@ -584,9 +681,7 @@ if (window.top !== window.self) {
       const s = L.seta(t.ausentes, t.anterior.ausentes);
       return `<span class="${classeSeta[s]}" title="${L.dataBR(t.anterior.data)}: ${t.anterior.ausentes} ausente(s)">${t.anterior.ausentes} ${s}</span>`;
     };
-    const geralAcima = L.acimaDaMeta(r.faltasQueContam, r.efetivo, r.meta);
     const nomesSup = lerPreferencia('nomesSuperior') !== 'nao';
-    const textoSup = L.textoSuperior(r, base.config.area, { comNomes: nomesSup });
     // O que precisa de revisão antes de mandar para o superior
     const revisao = [];
     if (r.pendentes.length) revisao.push(`Ainda falta(m) ${r.pendentes.length} time(s): ${r.pendentes.join(', ')}. O texto ainda não está completo.`);
@@ -601,16 +696,8 @@ if (window.top !== window.self) {
     }
     alvo.innerHTML = `
       <h2 class="so-impressao">Absenteísmo – ${L.dataBR(data)}</h2>
-      <div class="kpis">
-        <div class="kpi"><div class="ladrilho p">${ic('file')}</div><div style="flex:1"><div class="rot">Times recebidos</div><div class="valor">${r.recebidos.length}/${r.esperados}</div>
-          <div class="det">${pctRecebido}% concluído</div><div class="progresso"><span style="width:${pctRecebido}%"></span></div></div></div>
-        <div class="kpi"><div class="ladrilho p">${ic('users')}</div><div><div class="rot">Total de pessoas</div><div class="valor">${r.efetivo}</div><div class="det">Pessoas no dia</div></div></div>
-        <div class="kpi"><div class="ladrilho p verde">${ic('users')}</div><div><div class="rot">Presentes</div><div class="valor">${r.presentes}</div><div class="det">${pctDe(r.presentes, r.efetivo)} do total</div></div></div>
-        <div class="kpi"><div class="ladrilho p laranja">${ic('alert')}</div><div><div class="rot">Ausentes</div><div class="valor">${r.ausentes}</div><div class="det">${pctDe(r.ausentes, r.efetivo)} do total</div></div></div>
-        <div class="kpi destaque"><div class="ladrilho p">${ic('chart')}</div><div><div class="rot">Absenteísmo${r.meta ? ` (meta ${L.pctMeta(r.meta)})` : ''}</div>
-          <div class="valor${geralAcima ? ' acima' : ''}">${L.pct(r.faltasQueContam, r.efetivo)}</div><div class="det">${r.faltasQueContam} de ${r.efetivo} pessoas</div></div></div>
-      </div>
       ${mandouHTML}
+      ${indicadoresHTML(resumoAjustado(data), window.Painel ? window.Painel.contagensExtras(data) : [])}
       <div class="grade-2">
         <div class="cartao">
           <div class="cartao-topo"><div class="ladrilho p">${ic('chart')}</div><div><h3>Por time</h3><p>Resumo de presença e ausência por time.</p></div></div>
@@ -620,12 +707,13 @@ if (window.top !== window.self) {
             <tbody>${r.times.map(t => {
               const acima = L.acimaDaMeta(t.faltas, t.efetivo, r.meta);
               return `<tr>
-                <td><b>${esc(t.time)}</b>${t.turno ? `<br><span style="color:var(--fraco);font-size:13px">${esc(t.turno)}</span>` : ''}</td>
+                <td><b>${esc(t.time)}</b>${t.turno ? `<br><span style="color:var(--fraco);font-size:.8125rem">${esc(t.turno)}</span>` : ''}</td>
                 <td class="num">${t.efetivo}</td><td class="num col-pres">${t.presentes}</td><td class="num">${t.ausentes}</td>
                 <td class="centro">${antes(t)}</td>
                 <td class="num${acima ? ' acima' : ''}">${L.pct(t.faltas, t.efetivo)}</td>
                 <td class="col-barra"><div class="barra"><span style="width:${(t.efetivo ? t.faltas / t.efetivo : 0) / maxPct * 100}%${acima ? ';background:var(--vermelho)' : ''}"></span></div></td>
-                <td class="nao-imprimir"><button class="botao perigo icone" data-apagar="${esc(t.time)}" title="Apagar lançamento">${ic('trash')}</button></td>
+                <td class="nao-imprimir">${window.Painel && window.Painel.ehDeLider(data, t.time) ? '<span class="etiqueta" title="Enviado pelo líder. Para mudar, o líder edita no login dele.">líder</span>'
+                  : `<button class="botao perigo icone" data-apagar="${esc(t.time)}" title="Apagar lançamento" aria-label="Apagar lançamento do ${esc(t.time)}">${ic('trash')}</button>`}</td>
               </tr>`; }).join('')}
             </tbody>
           </table></div>
@@ -648,15 +736,15 @@ if (window.top !== window.self) {
           <div><h3>Texto para o superior</h3><p>Fechamento de todos os times juntos, no modelo que vai para a chefia.</p></div>
           <span class="espaco"></span>
           <div class="linha">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer"><input type="checkbox" id="nomesSuperior" style="width:18px;height:18px" ${nomesSup ? 'checked' : ''}> Incluir nomes</label>
+            <label class="opcao" ${textoEditado(data) != null ? 'title="Desligado enquanto você edita o texto"' : ''}><input type="checkbox" id="nomesSuperior" ${nomesSup ? 'checked' : ''} ${textoEditado(data) != null ? 'disabled' : ''}> Incluir nomes</label>
+            <button class="botao neutro" id="btnSuperiorWhats">${ic('message')}Enviar no WhatsApp</button>
             <button class="botao" id="btnCopiarSuperior">${ic('copy')}Copiar texto para o superior</button>
           </div>
         </div>
         ${revisao.length
           ? revisao.map(t => `<div class="caixa-aviso amarelo">${ic('alert')}<span>${esc(t)}</span></div>`).join('')
           : `<div class="caixa-aviso ok">${ic('checkCircle')}<span>Tudo conferido: todos os times mandaram e as contas fecham.</span></div>`}
-        ${base.config.area ? '' : `<div class="caixa-aviso info">${ic('info')}<span>Coloque o nome da área em Ajustes (ex.: SUB MONTAGEM TURNO B) para ele aparecer no título.</span></div>`}
-        <pre class="whats" style="margin-top:10px">${esc(textoSup)}</pre>
+        <div style="margin-top:.75rem">${textoSuperiorHTML(data)}</div>
       </div>
       <div class="cartao nao-imprimir">
         <div class="cartao-topo">
@@ -664,19 +752,22 @@ if (window.top !== window.self) {
           <div><h3>Resumo para o grupo</h3><p>Resumo com % por time, para enviar no grupo dos líderes.</p></div>
           <span class="espaco"></span>
           <div class="linha">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer"><input type="checkbox" id="comNomes" style="width:18px;height:18px" ${comNomes ? 'checked' : ''}> Incluir nomes</label>
-            <button class="botao sec" id="btnImprimirDia">${ic('printer')}Imprimir / PDF</button>
-            <button class="botao" id="btnCopiar">${ic('copy')}Copiar resumo</button>
+            <label class="opcao"><input type="checkbox" id="comNomes" ${comNomes ? 'checked' : ''}> Incluir nomes</label>
+            <button class="botao neutro" id="btnImprimirDia">${ic('printer')}Imprimir / PDF</button>
+            <button class="botao sec" id="btnCopiar">${ic('copy')}Copiar resumo</button>
           </div>
         </div>
         <pre class="whats">${esc(texto)}</pre>
       </div>`;
     $('#btnCopiar').onclick = async () => aviso(await copiar(texto) ? 'Resumo copiado. É só colar no WhatsApp.' : 'Não consegui copiar. Selecione o texto e copie.');
     $('#btnImprimirDia').onclick = () => window.print();
+    const revisaoOk = verbo => !revisao.length || confirm(`Ainda tem ${revisao.length} ponto(s) para revisar:\n\n${revisao.map(t => '• ' + t).join('\n')}\n\n${verbo} mesmo assim?`);
+    $('#btnSuperiorWhats').onclick = () => { if (revisaoOk('Enviar')) abrirWhatsApp(textoSuperiorAtual(data)); };
     $('#btnCopiarSuperior').onclick = async () => {
-      if (revisao.length && !confirm(`Ainda tem ${revisao.length} ponto(s) para revisar:\n\n${revisao.map(t => '• ' + t).join('\n')}\n\nCopiar mesmo assim?`)) return;
-      aviso(await copiar(textoSup) ? 'Texto copiado. É só colar na conversa com o superior.' : 'Não consegui copiar.');
+      if (!revisaoOk('Copiar')) return;
+      aviso(await copiar(textoSuperiorAtual(data)) ? 'Texto copiado. É só colar na conversa com o superior.' : 'Não consegui copiar.');
     };
+    ligarTextoSuperior(alvo, data, desenharDia);
     $('#nomesSuperior').onchange = e => { gravarPreferencia('nomesSuperior', e.target.checked ? 'sim' : 'nao'); desenharDia(); };
     $('#comNomes').onchange = e => { desenharDia.comNomes = e.target.checked; desenharDia(); };
     ligarCobranca(cobranca);
@@ -691,10 +782,12 @@ if (window.top !== window.self) {
   function ligarCobranca(cobranca) {
     const b = $('#btnCobranca');
     if (b) b.onclick = async () => aviso(await copiar(cobranca) ? 'Cobrança copiada. Cole no grupo.' : 'Não consegui copiar.');
+    const w = $('#btnCobrancaWhats');
+    if (w) w.onclick = () => abrirWhatsApp(cobranca);
   }
 
   function chipsHTML(r) {
-    const esperados = base.config.times.length ? base.config.times : r.recebidos;
+    const esperados = vista().config.times.length ? vista().config.times : r.recebidos;
     if (!esperados.length) return '';
     return `<div class="chips">${esperados.slice().sort(ordenarTimes).map(t => r.recebidos.includes(t)
         ? `<span class="chip ok">${esc(t)} ${ic('check')}</span>`
@@ -708,8 +801,10 @@ if (window.top !== window.self) {
     const b = $('#buscaPessoa').value;
     const alvo = $('#resultadoBusca');
     if (!b.trim()) { alvo.innerHTML = ''; return; }
-    const linhas = L.historicoPessoa(base, b);
-    if (!linhas.length) { alvo.innerHTML = `<div style="margin-top:16px">${vazio('search', 'Ninguém encontrado.')}</div>`; return; }
+    const antigos = window.Painel && window.Painel.garantirDesde('2000-01-01');   // procura a pessoa em todo o histórico
+    if (antigos) antigos.then(mudou => { if (mudou) desenharBusca(); });
+    const linhas = L.historicoPessoa(vista(), b);
+    if (!linhas.length) { alvo.innerHTML = `<div style="margin-top:16px">${vazio('search', antigos ? 'Procurando em todo o histórico…' : 'Ninguém encontrado.')}</div>`; return; }
     alvo.innerHTML = `<p style="margin:16px 0 8px"><b>${linhas.length}</b> ausência(s)</p>
       <div class="tabela-rolar"><table class="cinza"><thead><tr><th>Data</th><th>Dia</th><th>Time</th><th>Nome</th><th>Matrícula</th><th>Motivo</th></tr></thead>
       <tbody>${linhas.map(l => `<tr><td>${L.dataBR(l.data)}</td><td>${L.DIAS_SEMANA[L.diaDaSemana(l.data)]}</td><td>${esc(l.time)}</td><td>${esc(l.nome)}</td><td>${esc(l.matricula)}</td><td>${esc(l.motivo)}</td></tr>`).join('')}</tbody></table></div>`;
@@ -777,9 +872,9 @@ if (window.top !== window.self) {
       <div class="tabela-rolar" style="max-height:420px;overflow-y:auto"><table class="cinza">
         <thead><tr><th>Data</th><th>Time</th><th class="num">Total</th><th class="num">Presentes</th><th class="num">Ausentes</th><th>Pessoas</th><th></th></tr></thead>
         <tbody>${fs.map(f => { const k = L.chaveFechamento(f.data, f.time); return `<tr>
-          <td>${L.dataBR(f.data)}</td><td><b>${esc(f.time)}</b>${f.turno ? `<br><span style="color:var(--fraco);font-size:13px">${esc(f.turno)}</span>` : ''}</td>
+          <td>${L.dataBR(f.data)}</td><td><b>${esc(f.time)}</b>${f.turno ? `<br><span style="color:var(--fraco);font-size:.8125rem">${esc(f.turno)}</span>` : ''}</td>
           <td class="num">${f.efetivo}</td><td class="num">${f.presentes}</td><td class="num">${f.ausentes}</td>
-          <td style="font-size:14px">${f.pessoas.length ? f.pessoas.map(p => esc(p.nome || p.matricula)).join(', ') : '<span style="color:var(--fraco)">—</span>'}</td>
+          <td style="font-size:.875rem">${f.pessoas.length ? f.pessoas.map(p => esc(p.nome || p.matricula)).join(', ') : '<span style="color:var(--fraco)">—</span>'}</td>
           <td style="white-space:nowrap"><button class="botao sec" data-corrigir-lanc="${esc(k)}" title="Abrir na Conferência para corrigir">${ic('edit')}Corrigir</button>
             <button class="botao perigo icone" data-apagar-lanc="${esc(k)}" title="Apagar lançamento">${ic('trash')}</button></td></tr>`; }).join('')}</tbody>
       </table></div>
@@ -812,14 +907,16 @@ if (window.top !== window.self) {
     if (!$('#periodoDe').value) { $('#periodoDe').value = L.somarDias($('#periodoAte').value, -6); desenharPeriodo.atalho = null; }
     document.querySelectorAll('[data-periodo]').forEach(b => b.classList.toggle('ligado', b.dataset.periodo === desenharPeriodo.atalho));
     const de = $('#periodoDe').value, ate = $('#periodoAte').value;
-    const p = L.resumoPeriodo(base, de, ate);
+    const antigos = window.Painel && window.Painel.garantirDesde(de);                 // período mais antigo que o já carregado
+    if (antigos) antigos.then(mudou => { if (mudou) desenharPeriodo(); });
+    const p = L.resumoPeriodo(vista(), de, ate);
     const alvo = $('#resultadoPeriodo');
     if (!p.dias.length) {
       $('#faixaPeriodo').innerHTML = '';
       alvo.innerHTML = `<div class="cartao">${vazio('calendar', 'Nada gravado nesse período.')}</div>`;
       return;
     }
-    const alertas = L.alertasReincidencia(base, ate, 30, 3);
+    const alertas = L.alertasReincidencia(vista(), ate, 30, 3);
     const texto = L.textoPeriodo(p, alertas);
     const serie = desenharPeriodo.serie && (desenharPeriodo.serie === 'Geral' || p.times.includes(desenharPeriodo.serie)) ? desenharPeriodo.serie : 'Geral';
     const pc = (f, e) => `<span class="${L.acimaDaMeta(f, e, p.meta) ? 'acima' : ''}">${L.pct(f, e)}</span>`;
@@ -828,7 +925,7 @@ if (window.top !== window.self) {
 
     // Faltou mais de uma vez dentro do período
     const vezes = Object.create(null);
-    const fs = Object.values(base.fechamentos).filter(f => f.data >= de && f.data <= ate);
+    const fs = Object.values(vista().fechamentos).filter(f => f.data >= de && f.data <= ate);
     for (const f of fs) for (const x of f.pessoas) {
       const k = x.matricula || x.nome;
       vezes[k] = vezes[k] || { nome: x.nome, matricula: x.matricula, time: f.time, n: 0, motivos: {} };
@@ -870,8 +967,8 @@ if (window.top !== window.self) {
         <div class="cartao">
           <div class="cartao-topo"><div class="ladrilho p laranja">${ic('users')}</div><div><h3>Faltou mais de uma vez</h3><p>Pessoas com mais de uma ausência no período.</p></div></div>
           ${repetiu.length ? `<div class="tabela-rolar"><table class="cinza"><thead><tr><th>Nome</th><th>Time</th><th class="num">Vezes</th><th>Motivos</th></tr></thead><tbody>
-            ${repetiu.map(v => `<tr><td>${esc(v.nome)}<br><span style="color:var(--fraco);font-size:13px">${esc(v.matricula)}</span></td><td>${esc(v.time)}</td><td class="num"><b>${v.n}</b></td>
-              <td style="font-size:14px">${Object.entries(v.motivos).map(([m, n]) => `${esc(m)} (${n})`).join(', ')}</td></tr>`).join('')}
+            ${repetiu.map(v => `<tr><td>${esc(v.nome)}<br><span style="color:var(--fraco);font-size:.8125rem">${esc(v.matricula)}</span></td><td>${esc(v.time)}</td><td class="num"><b>${v.n}</b></td>
+              <td style="font-size:.875rem">${Object.entries(v.motivos).map(([m, n]) => `${esc(m)} (${n})`).join(', ')}</td></tr>`).join('')}
           </tbody></table></div>` : vazio('users', 'Ninguém repetiu no período.')}
         </div>
         <div class="cartao">
@@ -892,9 +989,9 @@ if (window.top !== window.self) {
         <div class="cartao">
           <div class="cartao-topo"><div class="ladrilho p vermelho">${ic('alert')}</div><div><h3>Atenção: 3 ou mais ausências em 30 dias</h3><p>Até ${L.dataBR(ate)}. Vale uma conversa do líder.</p></div></div>
           ${alertas.length ? `<div class="tabela-rolar"><table class="cinza"><thead><tr><th>Nome</th><th>Time</th><th class="num">Vezes</th><th>Datas</th></tr></thead><tbody>
-            ${alertas.map(a => `<tr><td>${esc(a.nome)}<br><span style="color:var(--fraco);font-size:13px">${esc(a.matricula)}</span></td><td>${esc(a.time)}</td>
+            ${alertas.map(a => `<tr><td>${esc(a.nome)}<br><span style="color:var(--fraco);font-size:.8125rem">${esc(a.matricula)}</span></td><td>${esc(a.time)}</td>
               <td class="num"><b>${a.total}</b></td>
-              <td style="font-size:14px">${a.datas.map(d => L.dataBR(d).slice(0, 5)).join(', ')}${a.padraoDia ? `<br><span class="etiqueta">quase sempre na ${a.padraoDia.toLowerCase()}</span>` : ''}</td></tr>`).join('')}
+              <td style="font-size:.875rem">${a.datas.map(d => L.dataBR(d).slice(0, 5)).join(', ')}${a.padraoDia ? `<br><span class="etiqueta">quase sempre na ${a.padraoDia.toLowerCase()}</span>` : ''}</td></tr>`).join('')}
           </tbody></table></div>` : vazio('checkCircle', 'Ninguém com 3 ou mais ausências.')}
         </div>
       </div>
@@ -904,8 +1001,8 @@ if (window.top !== window.self) {
           <div><h3>Resumo do período para o WhatsApp</h3><p>Copie e cole no grupo.</p></div>
           <span class="espaco"></span>
           <div class="linha">
-            <button class="botao sec" id="btnImprimirPeriodo">${ic('printer')}Imprimir / PDF</button>
-            <button class="botao" id="btnCopiarPeriodo">${ic('copy')}Copiar resumo</button>
+            <button class="botao neutro" id="btnImprimirPeriodo">${ic('printer')}Imprimir / PDF</button>
+            <button class="botao sec" id="btnCopiarPeriodo">${ic('copy')}Copiar resumo</button>
           </div>
         </div>
         <pre class="whats">${esc(texto)}</pre>
@@ -936,8 +1033,32 @@ if (window.top !== window.self) {
     $('#contagemTimes').textContent = `${n} time(s)`;
   }
 
+  // Efetivo previsto (Ajustes): mostra o que o texto de hoje diria com a opção escolhida na tela
+  function atualizarEfetivoAjustes() {
+    const modo = (document.querySelector('input[name="efModo"]:checked') || {}).value || 'auto';
+    const auto = L.resumoDoDia(vista(), hoje()).efetivo;
+    const cadastro = window.Painel ? window.Painel.totalCadastro() : 0;
+    const v = modo === 'cadastro' ? (cadastro || auto) : modo === 'fixo' ? (Math.floor(+$('#efFixo').value) || auto) : auto;
+    $('#efPrevia').textContent = `Com esta opção, o texto de hoje mostra: “* Efetivo previsto: ${v} colaboradores”.`;
+  }
+
   function desenharAjustes() {
     mostrarEstadoExcel();
+    const modoEf = base.config.efetivoModo || 'auto';
+    const totalCadastro = window.Painel ? window.Painel.totalCadastro() : 0;
+    document.querySelectorAll('input[name="efModo"]').forEach(i => { i.checked = i.value === modoEf; });
+    $('#efFixo').value = base.config.efetivoFixo || '';
+    $('#efCadastroN').textContent = totalCadastro ? `${totalCadastro} funcionários ativos` : 'disponível para supervisores, depois que o cadastro carregar';
+    $('#efModo-cadastro').disabled = !totalCadastro && modoEf !== 'cadastro';
+    atualizarEfetivoAjustes();
+    $('#cartaoPrazo').hidden = !(window.Painel && window.Painel.ehSupervisor());
+    $('#prazoHora').value = (window.Painel && window.Painel.prazo) ? window.Painel.prazo.slice(0, 5) : '';
+    $('#btnCsvLideres').hidden = !(window.Painel && window.Painel.ehSupervisor());
+    const ehSup = !!(window.Painel && window.Painel.ehSupervisor());
+    $('#cartaoMfa').hidden = !ehSup;
+    if (ehSup && sinc && sinc.supa) window.Acesso.desenharCartao(sinc.supa, contextoAcesso());
+    const bk = textoBackup();
+    $('#lembreteBackup').textContent = bk.texto; $('#lembreteBackup').style.color = bk.atrasado ? 'var(--vermelho)' : '';
     $('#cfgMeta').value = base.config.meta ? +(base.config.meta * 100).toFixed(2) : '';
     $('#cfgArea').value = base.config.area || '';
     const times = base.config.times.length ? base.config.times
@@ -975,6 +1096,16 @@ if (window.top !== window.self) {
     const b = e.target.closest('[data-apelido]'); if (!b) return;
     delete base.config.apelidos[b.dataset.apelido]; salvar(); desenharAjustes();
   });
+  document.querySelectorAll('input[name="efModo"]').forEach(i => i.addEventListener('change', atualizarEfetivoAjustes));
+  $('#efFixo').addEventListener('input', () => { $('#efModo-fixo').checked = true; atualizarEfetivoAjustes(); });
+  $('#btnSalvarEfetivo').addEventListener('click', () => {
+    const modo = (document.querySelector('input[name="efModo"]:checked') || {}).value || 'auto';
+    const fixo = Math.floor(+$('#efFixo').value);
+    if (modo === 'fixo' && !(fixo > 0 && fixo <= 100000)) { alert('Digite o efetivo previsto: um número maior que zero.'); return; }
+    base.config.efetivoModo = modo;
+    if (modo === 'fixo') base.config.efetivoFixo = fixo;
+    salvar(); atualizarEfetivoAjustes(); aviso('Efetivo previsto salvo.');
+  });
   $('#btnSalvarMeta').addEventListener('click', () => {
     const v = $('#cfgMeta').value.trim().replace(',', '.');
     if (v !== '' && !(+v > 0 && +v < 100)) { alert('Digite a meta em %, por exemplo 3 ou 2,5.'); return; }
@@ -1000,7 +1131,12 @@ if (window.top !== window.self) {
   $('#btnCopiarModelo').addEventListener('click', async () =>
     aviso(await copiar($('#previaModelo').textContent) ? 'Modelo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
 
-  $('#btnBackup').addEventListener('click', () => baixar(`absenteismo-backup-${hoje()}.json`, JSON.stringify(base, null, 1), 'application/json'));
+  $('#btnBackup').addEventListener('click', async () => {
+    const d = await dadosDosLideres();
+    // O backup leva também o que os líderes lançaram (guardado à parte; ao restaurar, isso não mexe no banco)
+    const saida = d ? Object.assign({}, base, { dadosDosLideres: { exportadoEm: new Date().toISOString(), lancamentos: d.lancamentos, envios: d.envios } }) : base;
+    baixar(`absenteismo-backup-${hoje()}.json`, JSON.stringify(saida, null, 1), 'application/json');
+  });
   $('#arqBackup').addEventListener('change', async e => {
     const arq = e.target.files[0]; if (!arq) return;
     e.target.value = '';
@@ -1020,8 +1156,23 @@ if (window.top !== window.self) {
     base = completar(b);
     salvar(); desenharAjustes(); aviso('Dados restaurados.');
   });
-  $('#btnCsvAusencias').addEventListener('click', () => baixar(`ausencias-${hoje()}.csv`, L.csvAusencias(base), 'text/csv;charset=utf-8'));
-  $('#btnCsvFechamentos').addEventListener('click', () => baixar(`totais-por-time-${hoje()}.csv`, L.csvFechamentos(base), 'text/csv;charset=utf-8'));
+  $('#btnCsvAusencias').addEventListener('click', async () => { const d = await dadosDosLideres(); baixar(`ausencias-${hoje()}.csv`, L.csvAusencias(d ? d.baseCompleta : base), 'text/csv;charset=utf-8'); });
+  $('#btnCsvFechamentos').addEventListener('click', async () => { const d = await dadosDosLideres(); baixar(`totais-por-time-${hoje()}.csv`, L.csvFechamentos(d ? d.baseCompleta : base), 'text/csv;charset=utf-8'); });
+  $('#btnCsvLideres').addEventListener('click', async () => {
+    const d = await dadosDosLideres();
+    if (!d) return aviso('Só supervisores têm os lançamentos dos líderes.');
+    baixar(`lancamentos-dos-lideres-${hoje()}.csv`, window.Lideres.csvLancamentos(d.lancamentos), 'text/csv;charset=utf-8');
+  });
+  // Prazo de envio dos times (igual para todos; só supervisor muda)
+  const HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
+  $('#btnSalvarPrazo').addEventListener('click', async () => {
+    const h = $('#prazoHora').value;
+    if (!HORA_OK.test(h)) return aviso('Escolha a hora do prazo.');
+    try { await window.Painel.salvarPrazo(h); aviso(`Prazo de envio salvo: ${h}.`); } catch (e) { aviso('Não consegui salvar o prazo. Confira a internet e tente de novo.'); }
+  });
+  $('#btnLimparPrazo').addEventListener('click', async () => {
+    try { await window.Painel.salvarPrazo(null); $('#prazoHora').value = ''; aviso('Sem prazo de envio.'); } catch (e) { aviso('Não consegui remover o prazo. Confira a internet e tente de novo.'); }
+  });
   $('#btnApagarTudo').addEventListener('click', () => {
     if (!confirm('Apagar TODOS os lançamentos da sua conta? Some no celular e no computador. Baixe um backup antes.')) return;
     if (!confirm('Tem certeza? Não dá para desfazer.\n\nO arquivo Excel NÃO será apagado: ele fica com os dados antigos, como backup.')) return;
@@ -1030,13 +1181,16 @@ if (window.top !== window.self) {
   });
 
   // ---------- Login e sincronização entre aparelhos ----------
-  const abaAtual = () => (document.querySelector('.passo.ativa') || {}).dataset.aba || 'colar';
+  const abaAtual = () => ((document.querySelector('section.aba.ativa') || {}).id || 'aba-colar').replace('aba-', '');
   function redesenharAtual() {
+    const foco = document.activeElement;
+    if (foco && foco.matches && foco.matches('[data-texto-area]')) return; // não interrompe a edição do texto
     const a = abaAtual();
     if (a === 'colar') desenharColar();
     if (a === 'conferencia') atualizarBotaoTodos();
     if (a === 'dia') desenharDia();
     if (a === 'historico') { desenharBusca(); desenharPeriodo(); }
+    if (window.Painel && window.Painel.ABAS.includes(a)) window.Painel.desenhar(a);
   }
 
   function mostrarSinc(info) {
@@ -1067,8 +1221,8 @@ if (window.top !== window.self) {
     });
   }
 
-  // Tela de login
-  let modoLogin = 'entrar'; // entrar | criar | nova-senha
+  // Tela de login (não existe "criar conta": o supervisor cria os acessos)
+  let modoLogin = 'entrar'; // entrar | nova-senha
   function msgLogin(texto, nivel) {
     const m = $('#msgLogin');
     m.className = 'caixa-aviso msg-login ' + (nivel || 'vermelho');
@@ -1081,78 +1235,164 @@ if (window.top !== window.self) {
     $('#loginEmail').closest('div').hidden = m === 'nova-senha';
     $('#loginEmail').required = m !== 'nova-senha';
     $('#loginSenha').autocomplete = m === 'entrar' ? 'current-password' : 'new-password';
-    $('#btnEntrar').textContent = { entrar: 'Entrar', criar: 'Criar conta', 'nova-senha': 'Salvar nova senha' }[m];
-    $('#lnkModo').textContent = m === 'entrar' ? 'Criar conta' : 'Já tenho conta';
+    $('#btnEntrar').textContent = { entrar: 'Entrar', 'nova-senha': 'Salvar nova senha' }[m];
     $('#lnkEsqueci').hidden = m !== 'entrar';
     $('#subLogin').textContent = {
-      entrar: 'Entre com sua conta para ver os dados no celular e no computador.',
-      criar: 'Crie sua conta com e-mail e senha. Use a mesma no celular e no computador.',
+      entrar: 'Entre com seu usuário e senha.',
       'nova-senha': 'Digite a sua nova senha.',
     }[m];
     msgLogin('');
   }
+  // Mensagens simples para a pessoa; o texto técnico do servidor nunca vai para a tela.
   function traduzirErro(e) {
-    const t = String((e && e.message) || e || '');
-    if (/invalid login credentials/i.test(t)) return 'E-mail ou senha errados.';
-    if (/email not confirmed/i.test(t)) return 'Falta confirmar o e-mail: abra o link que chegou na sua caixa de entrada (veja também o spam).';
-    if (/already registered|already been registered/i.test(t)) return 'Esse e-mail já tem conta. Use "Já tenho conta" para entrar.';
-    if (/password should be at least|weak password/i.test(t)) return 'Senha muito curta ou fraca. Use pelo menos 6 caracteres.';
-    if (/rate limit|too many/i.test(t)) return 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.';
+    const t = String((e && (e.code || e.message)) || e || '');
+    if (/invalid login credentials|invalid_credentials/i.test(t)) return 'Usuário ou senha errados.';
+    if (/banned|user_banned/i.test(t)) return 'Este acesso está desativado. Fale com o supervisor.';
+    if (/email not confirmed/i.test(t)) return 'Este e-mail ainda não foi confirmado.';
+    if (/same_password|different from the old/i.test(t)) return 'Escolha uma senha diferente da atual.';
+    if (/weak_password|password should be|weak password/i.test(t)) return 'O sistema recusou essa senha por ser fraca. Escolha outra.';
+    if (/rate limit|too many|over_request_rate/i.test(t)) return 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.';
     if (/fetch|network/i.test(t)) return 'Sem internet. Conecte-se e tente de novo.';
-    return 'Não deu certo: ' + t;
+    console.warn('Não deu certo:', t.slice(0, 200));
+    return 'Não foi possível concluir. Tente de novo; se continuar, fale com o supervisor.';
   }
+  // A página nasce escondida até saber quem entrou (senão o líder veria as telas de supervisor por um instante)
+  const liberarTela = () => document.body.classList.remove('carregando');
+  setTimeout(liberarTela, 8000);
+  const travarApp = sim => { document.querySelector('.app').inert = sim; };
   function mostrarLogin(m) {
+    liberarTela(); travarApp(true);
     modo(m || 'entrar');
     $('#telaLogin').hidden = false;
     setTimeout(() => (m === 'nova-senha' ? $('#loginSenha') : $('#loginEmail')).focus(), 50);
   }
   const enderecoApp = () => location.origin + location.pathname;
 
-  $('#lnkModo').addEventListener('click', () => modo(modoLogin === 'entrar' ? 'criar' : 'entrar'));
   $('#lnkEsqueci').addEventListener('click', async () => {
     const email = $('#loginEmail').value.trim();
     if (!email) { msgLogin('Digite seu e-mail acima e clique de novo em "Esqueci a senha".', 'info'); return; }
+    if (!email.includes('@')) { msgLogin('Líder: peça ao supervisor para gerar uma senha nova para você.', 'info'); return; }
+    if (window.Lideres.emailDoUsuario(email).endsWith('@' + window.Lideres.DOMINIO)) { msgLogin('Líder: peça ao supervisor para gerar uma senha nova para você.', 'info'); return; }
     const { error } = await sinc.supa.auth.resetPasswordForEmail(email, { redirectTo: enderecoApp() });
-    if (error) msgLogin(traduzirErro(error));
-    else msgLogin('Enviamos um link para o seu e-mail. Abra ele neste aparelho para criar uma senha nova.', 'ok');
+    if (error && /fetch|network/i.test(error.message || '')) msgLogin(traduzirErro(error));
+    else msgLogin('Se este e-mail tem acesso, enviamos um link para ele. Abra o link neste aparelho para criar uma senha nova.', 'ok');   // mesma resposta exista a conta ou não
   });
+
+  // O que o módulo de acesso (segundo passo, troca de senha) precisa da página
+  const contextoAcesso = () => ({ aviso, sair: () => sairDaConta() });
 
   $('#formLogin').addEventListener('submit', async e => {
     e.preventDefault();
-    const email = $('#loginEmail').value.trim(), senha = $('#loginSenha').value, senha2 = $('#loginSenha2').value;
-    if (modoLogin !== 'entrar' && senha !== senha2) { msgLogin('As duas senhas estão diferentes.'); return; }
-    const botao = $('#btnEntrar'); botao.disabled = true;
+    const email = window.Lideres.emailDoUsuario($('#loginEmail').value), senha = $('#loginSenha').value, senha2 = $('#loginSenha2').value;
+    if (modoLogin === 'nova-senha') {
+      if (senha !== senha2) { msgLogin('As duas senhas estão diferentes.'); return; }
+      const fraca = window.Lideres.senhaFraca(senha, '');
+      if (fraca) { msgLogin(fraca); return; }
+    }
+    const botao = $('#btnEntrar'); botao.disabled = true; botao.textContent = 'Entrando…';
     try {
       if (modoLogin === 'entrar') {
         const { data, error } = await sinc.supa.auth.signInWithPassword({ email, password: senha });
         if (error) throw error;
         await entrar(data.user);
-      } else if (modoLogin === 'criar') {
-        const { data, error } = await sinc.supa.auth.signUp({ email, password: senha, options: { emailRedirectTo: enderecoApp() } });
-        if (error) throw error;
-        if (data.session) await entrar(data.user);
-        else { modo('entrar'); $('#loginEmail').value = email; msgLogin('Conta criada! Abra o e-mail de confirmação que enviamos e depois entre aqui com sua senha.', 'ok'); }
       } else {
-        const { data, error } = await sinc.supa.auth.updateUser({ password: senha });
+        // conta com celular cadastrado: confirma o código antes de trocar a senha
+        if (!(await window.Acesso.elevar(sinc.supa, contextoAcesso()))) return;
+        const { data, error } = await sinc.supa.auth.updateUser({ password: senha, data: { trocar_senha: false } });
         if (error) throw error;
         aviso('Senha trocada.');
         await entrar(data.user);
       }
     } catch (err) {
       msgLogin(traduzirErro(err));
-    } finally { botao.disabled = false; $('#loginSenha').value = ''; $('#loginSenha2').value = ''; }
+    } finally { botao.disabled = false; botao.textContent = { entrar: 'Entrar', 'nova-senha': 'Salvar nova senha' }[modoLogin]; $('#loginSenha').value = ''; $('#loginSenha2').value = ''; }
   });
 
   async function entrar(usuario) {
-    $('#telaLogin').hidden = true;
+    $('#telaLogin').hidden = true; travarApp(false);
+    // Quem é: líder (só lança o time dele), supervisor (recebe tudo) ou sem acesso
+    let perfil;
+    try { perfil = await window.Painel.carregarPerfil(sinc.supa, usuario); }
+    catch (e) { perfil = undefined; }
+    if (perfil === undefined && sinc.estado.usuario !== usuario.id) {
+      // Não deu para consultar e este aparelho não conhece a conta: volta para o login
+      try { await sinc.supa.auth.signOut(); } catch (e) { /* ok */ }
+      mostrarLogin('entrar'); msgLogin('Não consegui carregar seu acesso. Verifique a internet e tente de novo.');
+      return;
+    }
+    if (perfil === null) {
+      try { await sinc.supa.auth.signOut(); } catch (e) { /* ok */ }
+      sinc.esquecer(); trocarBase(null);
+      mostrarLogin('entrar'); msgLogin('Esta conta não tem acesso ao sistema. Fale com o supervisor.');
+      return;
+    }
+    // Supervisor vê os dados de saúde de todos os times: além da senha, confirma o código do celular
+    if (perfil && perfil.papel === 'supervisor') {
+      travarApp(true);
+      const passo = await window.Acesso.garantir(sinc.supa, contextoAcesso());
+      travarApp(false);
+      if (passo === 'saiu') return;
+      if (passo !== true) { mostrarLogin('entrar'); msgLogin('Não consegui confirmar o segundo passo. Verifique a internet e entre de novo.'); return; }
+      iniciarInatividade();
+    }
+    liberarTela();
     const email = usuario.email || '';
-    $('#emailUsuario').textContent = email;
-    $('#nomeUsuario').textContent = email.split('@')[0];
-    $('#iniciais').textContent = (email.replace(/[^a-z]/gi, '').slice(0, 2) || '?').toUpperCase();
+    const nomeCurto = perfil ? (perfil.papel === 'lider' ? perfil.time : (perfil.nome || perfil.usuario)) : email.split('@')[0];
+    $('#emailUsuario').textContent = perfil && perfil.papel === 'lider' ? `Time ${perfil.time} (${perfil.usuario})` : email;
+    $('#nomeUsuario').textContent = nomeCurto;
+    $('#iniciais').textContent = (nomeCurto.replace(/[^a-z0-9]/gi, '').slice(0, 2) || '?').toUpperCase();
+    if (perfil && perfil.papel === 'lider') {
+      // A senha gerada pelo supervisor é provisória: no primeiro acesso online o líder cria a própria
+      if (usuario.user_metadata && usuario.user_metadata.trocar_senha === true && navigator.onLine) {
+        travarApp(true);
+        const trocou = await window.Acesso.trocarSenha(sinc.supa, { obrigatoria: true, usuario: perfil.usuario, contexto: contextoAcesso() });
+        travarApp(false);
+        if (!trocou) return;   // saiu da conta
+      }
+      // Líder não usa a base de mensagens do WhatsApp: tela própria de lançamento
+      fila = []; atualizarContador();
+      // Aparelho compartilhado: não deixa dados de supervisor por perto (a menos que ainda não tenham subido)
+      if (!sinc.pendentes()) { sinc.esquecer(); trocarBase(null); }
+      await window.Painel.abrirLider();
+      return;
+    }
     const n = Object.keys(base.fechamentos).length;
     await sinc.prepararUsuario(usuario, async () =>
       confirm(`Este aparelho já tem ${n} lançamento(s) de antes do login.\n\nEnviar para a sua conta, para aparecerem também nos outros aparelhos?\n\n(OK = enviar · Cancelar = descartar deste aparelho)`));
-    redesenharAtual();
+    if (perfil) {
+      await window.Painel.prepararSupervisor();
+      irPara('recebidos');
+      lembrarDoBackup();
+    } else redesenharAtual();
+  }
+
+  // Sem sinal do supervisor por 30 minutos: sai sozinho (só se não houver nada por enviar, para não perder trabalho)
+  const LIMITE_INATIVO_MIN = 30;
+  let ultimaAtividade = Date.now(), vigiaInatividade = null;
+  function iniciarInatividade() {
+    ultimaAtividade = Date.now();
+    if (vigiaInatividade) return;
+    ['pointerdown', 'keydown', 'touchstart', 'scroll', 'wheel'].forEach(ev => document.addEventListener(ev, () => { ultimaAtividade = Date.now(); }, { passive: true, capture: true }));
+    vigiaInatividade = setInterval(() => {
+      if (!window.Painel.ehSupervisor() || !sinc || !sinc.estado.usuario) return;
+      if (!window.Lideres.deveSairPorInatividade(ultimaAtividade, Date.now(), LIMITE_INATIVO_MIN)) return;
+      if (sinc.pendentes() || window.Painel.pendentesLider()) return;
+      sairDaConta(`Você saiu por inatividade (${LIMITE_INATIVO_MIN} minutos parado). Entre de novo para continuar.`);
+    }, 30000);
+  }
+
+  // Este plano do banco não faz cópia automática: lembra o supervisor de baixar backup
+  function textoBackup() {
+    const guardado = lerPreferencia('ultimoBackup');
+    const dias = window.Lideres.diasSemBackup(guardado ? Number(guardado) : NaN, Date.now());
+    if (dias === null) return { texto: 'Você ainda não baixou nenhum backup neste aparelho. O banco deste plano não faz cópia automática.', atrasado: true };
+    return { texto: dias === 0 ? 'Último backup baixado hoje.' : `Último backup baixado há ${dias} dia${dias > 1 ? 's' : ''}.`, atrasado: dias > 7 };
+  }
+  function lembrarDoBackup() {
+    const b = textoBackup();
+    if (!b.atrasado || lerPreferencia('lembreteBackupDia') === hoje()) return;
+    gravarPreferencia('lembreteBackupDia', hoje());
+    aviso(b.texto + ' Baixe um em Ajustes.');
   }
 
   // Menu do usuário
@@ -1160,17 +1400,36 @@ if (window.top !== window.self) {
   document.addEventListener('click', e => { if (!e.target.closest('.usuario')) $('#menuUsuario').hidden = true; });
   $('#btnSincronizarAgora').addEventListener('click', async () => { $('#menuUsuario').hidden = true; await sinc.sincronizar(); });
   $('#estadoSinc').addEventListener('click', () => sinc && sinc.sincronizar());
-  $('#btnSair').addEventListener('click', async () => {
-    const p = sinc.pendentes();
-    if (p && !confirm(`Ainda tem ${p} mudança(s) que não subiram (sem internet?). Se sair agora, elas se perdem.\n\nSair mesmo assim?`)) return;
-    if (!p && !confirm('Sair desta conta? Os dados continuam salvos na conta; este aparelho fica limpo.')) return;
+  // Sai da conta e limpa este aparelho (fila, cópia dos dados, textos guardados)
+  async function sairDaConta(motivo) {
     $('#menuUsuario').hidden = true;
     try { await sinc.supa.auth.signOut(); } catch (e) { /* sem internet: sai do mesmo jeito */ }
     sinc.esquecer();
+    window.Painel.sair();
     fila = []; atualizarContador();
     trocarBase(null);
     irPara('colar');
     mostrarLogin('entrar');
+    if (motivo) msgLogin(motivo, 'info');
+  }
+  $('#btnSair').addEventListener('click', async () => {
+    const p = sinc.pendentes();
+    const pl = window.Painel.pendentesLider();
+    if (pl && !confirm(`Ainda tem ${pl} lançamento(s) guardado(s) neste aparelho que não foram enviados. Se sair agora, eles se perdem.\n\nSair mesmo assim?`)) return;
+    if (!pl && p && !confirm(`Ainda tem ${p} mudança(s) que não subiram (sem internet?). Se sair agora, elas se perdem.\n\nSair mesmo assim?`)) return;
+    if (!p && !pl && !confirm('Sair desta conta? Os dados continuam salvos na conta; este aparelho fica limpo.')) return;
+    await sairDaConta();
+  });
+  $('#btnTrocarSenha').addEventListener('click', async () => {
+    $('#menuUsuario').hidden = true;
+    if (!navigator.onLine) return aviso('Sem internet. Troque a senha quando estiver conectado.');
+    let u = null;
+    try { const { data } = await sinc.supa.auth.getSession(); u = data && data.session && data.session.user; } catch (e) { /* segue sem o nome */ }
+    if (!u) return aviso('Entre de novo para trocar a senha.');
+    if (!(await window.Acesso.elevar(sinc.supa, contextoAcesso()))) return;
+    travarApp(true);
+    await window.Acesso.trocarSenha(sinc.supa, { obrigatoria: false, usuario: (u.email || '').split('@')[0], contexto: contextoAcesso() });
+    travarApp(false);
   });
 
   // Sincroniza ao voltar para o app, quando a internet volta e a cada minuto
@@ -1183,7 +1442,8 @@ if (window.top !== window.self) {
     if (!sinc || !sinc.disponivel) {
       // Sem a biblioteca (sem internet no primeiro acesso): usa o que já está no aparelho
       const est = sinc ? sinc.estado : null;
-      if (est && est.usuario) { $('#emailUsuario').textContent = est.email || ''; mostrarSinc({ estado: 'offline', pendentes: sinc.pendentes() }); return; }
+      if (est && est.usuario) { liberarTela(); $('#emailUsuario').textContent = est.email || ''; mostrarSinc({ estado: 'offline', pendentes: sinc.pendentes() }); return; }
+      liberarTela(); travarApp(true);
       $('#telaLogin').hidden = false; modo('entrar');
       msgLogin('Precisa de internet para o primeiro acesso.', 'info');
       $('#formLogin').querySelectorAll('input,button').forEach(x => { x.disabled = true; });
@@ -1192,11 +1452,15 @@ if (window.top !== window.self) {
     sinc.supa.auth.onAuthStateChange((evento, sessao) => {
       if (evento === 'PASSWORD_RECOVERY') mostrarLogin('nova-senha');
     });
-    const { data } = await sinc.supa.auth.getSession();
+    let data = null;
+    try { ({ data } = await sinc.supa.auth.getSession()); } catch (e) { data = null; }
     if (data && data.session) return entrar(data.session.user);
     const est = sinc.estado;
+    const uidLider = !navigator.onLine ? window.Painel.ultimoLider() : null;
+    if (uidLider) return entrar({ id: uidLider, email: '' });
     if (!navigator.onLine && est.usuario) {
       // Já entrou antes neste aparelho: abre sem internet e sincroniza quando voltar
+      liberarTela();
       $('#emailUsuario').textContent = est.email || '';
       $('#nomeUsuario').textContent = (est.email || '').split('@')[0];
       mostrarSinc({ estado: 'offline', pendentes: sinc.pendentes() });
@@ -1209,6 +1473,9 @@ if (window.top !== window.self) {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker', e));
   }
 
+  window.Painel.ligar({ ic, esc, aviso, copiar, hoje, vazio, irPara, aoReceberDosLideres: redesenharAtual,
+    resumoDoDia: resumoAjustado, indicadoresHTML, textoSuperiorHTML, textoSuperiorAtual, ligarTextoSuperior, abrirWhatsApp });
+  window.Painel.iniciarTelas();
   atualizarContador();
   desenharColar();
   iniciarExcel();

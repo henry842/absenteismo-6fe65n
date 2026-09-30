@@ -256,8 +256,11 @@
           if (pessoa || cur.pessoas.length) fecharMensagem();
           const n = +numero[1];
           if (c.campo === 'contagem') cur.contagens[c.motivo] = (cur.contagens[c.motivo] || 0) + n;
-          else cur[c.campo] = n;
-          if (c.campo === 'ausentes') cur.ausentesRotulo = kv[1].trim();
+          else if (c.campo === 'ausentes') {
+            const ehTotal = /ausent/.test(chave);
+            if (ehTotal || !cur.ausentesDoTotal) { cur.ausentes = n; cur.ausentesRotulo = kv[1].trim(); }
+            if (ehTotal) cur.ausentesDoTotal = true;
+          } else cur[c.campo] = n;
           cur.texto.push(original);
           continue;
         }
@@ -606,6 +609,10 @@
     nova.config.meta = c.meta != null && Number.isFinite(meta) && meta > 0 && meta < 1 ? meta : null;
     if (c.area) nova.config.area = texto(c.area, 80);
     if (typeof c.textoPadrao === 'string') nova.config.textoPadrao = c.textoPadrao.slice(0, 8000);   // '' = texto original
+    // Efetivo previsto do texto para o superior: auto (soma dos times que enviaram), cadastro (funcionários ativos) ou fixo
+    if (['auto', 'cadastro', 'fixo'].includes(c.efetivoModo)) nova.config.efetivoModo = c.efetivoModo;
+    const fixo = Math.floor(Number(c.efetivoFixo));
+    if (Number.isFinite(fixo) && fixo > 0 && fixo <= 100000) nova.config.efetivoFixo = fixo;
     return nova;
   }
 
@@ -701,29 +708,49 @@
   function textoSuperior(r, area, opcoes) {
     const comNomes = !(opcoes && opcoes.comNomes === false);
     const [a, m, d] = r.data.split('-');
+    const L = [`ABSENTEÍSMO ${String(area || AREA_PADRAO).trim().toUpperCase()} ${d}/${m}/${a.slice(2)}`, ''];
+    for (const i of indicadores(r)) L.push(`* ${i.rotulo}: ${i.valor}${i.unidade ? ' ' + i.unidade : ''}`);
+    if (comNomes) for (const t of r.times) for (const p of t.pessoas) {
+      L.push('', p.nome || '(sem nome)', `ID: ${p.matricula || '?'}`, `Equipe: ${t.time}`, `Motivo: ${p.motivo}${p.motivoEscrito ? ' – ' + p.motivoEscrito : ''}`);
+    }
+    return L.join('\n');
+  }
+
+  // Troca o efetivo do dia por um valor definido em Ajustes. Guarda o valor automático em efetivoAuto.
+  function comEfetivoPrevisto(r, valor) {
+    const v = Math.floor(Number(valor));
+    if (!(v > 0) || v === r.efetivo) return r;
+    return Object.assign({}, r, {
+      efetivo: v, efetivoAuto: r.efetivo, presentes: Math.max(0, v - r.ausentes), absenteismo: r.faltasQueContam / v,
+    });
+  }
+
+  // Área que vai no título quando ninguém configurou outra
+  const AREA_PADRAO = 'CHASSI/SUB-MONTAGEM';
+
+  // Os indicadores do dia, na ordem e com os nomes do texto para o superior (a tela usa a mesma lista).
+  // "Total de ausentes" é todo mundo que não está presente; "Faltas" só os que contam no %
+  // (motivos marcados em Ajustes como "não contam", como Férias, ficam de fora).
+  function indicadores(r) {
     const c = {};
     for (const t of r.times) for (const p of t.pessoas) c[p.motivo] = (c[p.motivo] || 0) + 1;
     const n = mot => c[mot] || 0;
-    const L = [
-      `ABSENTEÍSMO ${area ? String(area).trim().toUpperCase() + ' ' : ''}${d}/${m}/${a.slice(2)}`,
-      '',
-      `- Efetivo previsto: ${r.efetivo} colaboradores`,
-      `- Atestados médicos: ${n('Atestado médico')}`,
-      `- Atraso de roteiro: ${n('Atraso roteiro')}`,
-      `- Atraso por motivo pessoal: ${n('Atraso motivo pessoal')}`,
-      `- Atraso sem justificativa: ${n('Atraso sem justificativa')}`,
-      `- Faltas: ${r.ausentes}`,
-      `- Faltas sem justificativa: ${n('Sem justificativa')}`,
-      `- Afastamento INSS: ${n('Afastamento INSS')}`,
-      `- Turno ADM: ${n('Turno ADM')}`,
-      `- Férias: ${n('Férias')}`,
+    const lista = [
+      { chave: 'efetivo', rotulo: 'Efetivo previsto', valor: r.efetivo, unidade: 'colaboradores', forte: true },
+      { chave: 'atestados', rotulo: 'Atestados médicos', valor: n('Atestado médico') },
+      { chave: 'atrasoRoteiro', rotulo: 'Atraso de roteiro', valor: n('Atraso roteiro') },
+      { chave: 'atrasoPessoal', rotulo: 'Atraso por motivo pessoal', valor: n('Atraso motivo pessoal') },
+      { chave: 'atrasoSemJustificativa', rotulo: 'Atraso sem justificativa', valor: n('Atraso sem justificativa') },
+      { chave: 'ausentes', rotulo: 'Total de ausentes', valor: r.ausentes, forte: true },
+      { chave: 'faltas', rotulo: 'Faltas', valor: r.faltasQueContam },
+      { chave: 'faltasSemJustificativa', rotulo: 'Faltas sem justificativa', valor: n('Sem justificativa') },
+      { chave: 'inss', rotulo: 'Afastamento INSS', valor: n('Afastamento INSS') },
+      { chave: 'adm', rotulo: 'Turno ADM', valor: n('Turno ADM') },
+      { chave: 'ferias', rotulo: 'Férias', valor: n('Férias') },
     ];
-    if (n('Outros')) L.push(`- Outros: ${n('Outros')}`);
-    L.push(`- Total presente: ${r.presentes} colaboradores`);
-    if (comNomes) for (const t of r.times) for (const p of t.pessoas) {
-      L.push('', p.nome || '(sem nome)', `ID: ${p.matricula || '?'}`, `Equipe: ${t.time}`, `Motivo: ${p.motivo}`);
-    }
-    return L.join('\n');
+    if (n('Outros')) lista.push({ chave: 'outros', rotulo: 'Outros', valor: n('Outros') });
+    lista.push({ chave: 'presentes', rotulo: 'Total presente', valor: r.presentes, unidade: 'colaboradores', forte: true });
+    return lista;
   }
 
   // Texto para cobrar no grupo quem ainda não mandou.
@@ -853,7 +880,7 @@
       data: f.data, time: f.time, timeBruto: f.time, timeIncompleto: false, turno: f.turno || null,
       efetivo: f.efetivo, presentes: f.presentes, ausentes: f.efetivo - f.presentes, ausentesInformado: false,
       contagens: {}, linhasIgnoradas: [], texto: f.texto || '',
-      pessoas: f.pessoas.map(p => ({ nome: p.nome, matricula: p.matricula, motivo: p.motivo, motivoOriginal: p.motivoOriginal || p.motivo, motivoReconhecido: true })),
+      pessoas: f.pessoas.map(p => ({ nome: p.nome, matricula: p.matricula, motivo: p.motivo, motivoOriginal: p.motivoOriginal || p.motivo, motivoEscrito: p.motivoEscrito || '', motivoReconhecido: true })),
       substitui: chaveFechamento(f.data, f.time),
     };
   }
@@ -971,7 +998,7 @@
 
   const Leitor = {
     MOTIVOS, dobrar, limparLinha, prefixoWhats, timeDoTitulo, normalizarTime, pareceNome, normalizarMotivo, acharData, acharTime, acharTurno,
-    lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
+    AREA_PADRAO, indicadores, comEfetivoPrevisto, lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
     resumoDoDia, textoWhatsApp, historicoPessoa, csvAusencias, csvFechamentos, dataBR, pct, nomeBonito,
     DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa, sanearBase,
     seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, modeloOrientacao, preencherModelo, mensagemDoFechamento, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,

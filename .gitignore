@@ -7,6 +7,8 @@
 ~$*
 testes/saida/
 .claude/
+dist/
+.wrangler/
 
 # Vídeo de apresentação: entradas (HTML das telas, amostra de voz) e arquivos gerados
 video/entrada/
@@ -20,3 +22,8 @@ video/demo/quadros/
 video/demo/saida/
 video/demo/quadros_zh/
 video/demo/saida_zh/
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

@@ -61,10 +61,27 @@
     return saida;
   }
 
-  async function inflar(bytes) {
+  const LIMITE_ARQUIVO = 30 * 1024 * 1024;   // cada arquivo, depois de aberto
+  const LIMITE_TOTAL = 80 * 1024 * 1024;     // o Excel inteiro, depois de aberto
+  const MAX_ENTRADAS = 500;
+
+  // Abre um arquivo comprimido e para assim que passar do limite (sem encher a memória)
+  async function inflar(bytes, maximo) {
     const ds = new DecompressionStream('deflate-raw');
-    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
-    return new Uint8Array(buf);
+    const leitor = new Blob([bytes]).stream().pipeThrough(ds).getReader();
+    const pedacos = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      total += value.length;
+      if (total > maximo) { await leitor.cancel(); throw new Error('Esse arquivo Excel é grande demais depois de aberto.'); }
+      pedacos.push(value);
+    }
+    const saida = new Uint8Array(total);
+    let o = 0;
+    for (const p of pedacos) { saida.set(p, o); o += p.length; }
+    return saida;
   }
 
   // Devolve { 'caminho/no/zip': Uint8Array }
@@ -76,9 +93,11 @@
     }
     if (fimPos < 0) throw new Error('Não é um arquivo Excel (.xlsx).');
     const n = v.getUint16(fimPos + 10, true);
+    if (n > MAX_ENTRADAS) throw new Error('Arquivo Excel com arquivos demais.');
     let p = v.getUint32(fimPos + 16, true);
     const dec = new TextDecoder();
     const saida = {};
+    let somado = 0;
     for (let i = 0; i < n; i++) {
       if (v.getUint32(p, true) !== 0x02014b50) throw new Error('Arquivo Excel corrompido.');
       const metodo = v.getUint16(p + 10, true);
@@ -88,7 +107,11 @@
       const nome = dec.decode(bytes.subarray(p + 46, p + 46 + nl));
       const ini = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
       const bruto = bytes.subarray(ini, ini + tam);
-      saida[nome] = metodo === 0 ? bruto : metodo === 8 ? await inflar(bruto) : null;
+      const conteudo = metodo === 0 ? bruto : metodo === 8 ? await inflar(bruto, LIMITE_ARQUIVO) : null;
+      somado += conteudo ? conteudo.length : 0;
+      if (somado > LIMITE_TOTAL) throw new Error('Esse arquivo Excel é grande demais depois de aberto.');
+      if (Object.prototype.hasOwnProperty.call(saida, nome)) throw new Error('Arquivo Excel inválido.');
+      saida[nome] = conteudo;
       p += 46 + nl + el + cl;
     }
     return saida;
@@ -194,7 +217,11 @@ ${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxm
   const ordenar = (a, b) => a.data.localeCompare(b.data) || a.time.localeCompare(b.time, 'pt', { numeric: true });
   const nomeDia = iso => L.DIAS_SEMANA[L.diaDaSemana(iso)];
 
-  function abasDaBase(base) {
+  const lideres = () => ((typeof module !== 'undefined' && module.exports) ? require('./lideres.js') : raiz.Lideres);
+
+  // extra (opcional): { baseCompleta, lancamentos, envios } com o que os líderes lançaram
+  function abasDaBase(baseOriginal, extra) {
+    const base = (extra && extra.baseCompleta) || baseOriginal;
     const naoContam = (base.config && base.config.naoContam) || [];
     const fs = Object.values(base.fechamentos || {}).sort(ordenar);
     const datas = [...new Set(fs.map(f => f.data))].sort();
@@ -214,9 +241,22 @@ ${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxm
       a.padraoDia || '', Object.entries(a.motivos).map(([m, n]) => `${m} (${n})`).join(', '),
     ]) : [];
 
-    const json = JSON.stringify(base);
+    const json = JSON.stringify(baseOriginal);
     const pedacos = [];
     for (let i = 0; i < json.length; i += TAM_PEDACO) pedacos.push([json.slice(i, i + TAM_PEDACO)]);
+
+    const D = lideres();
+    const abasLideres = extra && (extra.lancamentos || extra.envios) ? [
+      { nome: 'Lançamentos dos líderes', linhas: D.linhasLancamentos(extra.lancamentos), colunas: [
+        { titulo: 'Data', tipo: 'd', largura: 12 }, { titulo: 'Dia da semana', tipo: 't', largura: 14 }, { titulo: 'Time', tipo: 't', largura: 9 },
+        { titulo: 'Tipo', tipo: 't', largura: 17 }, { titulo: 'Matrícula', tipo: 't', largura: 12 }, { titulo: 'Nome', tipo: 't', largura: 32 },
+        { titulo: 'Motivo', tipo: 't', largura: 24 }, { titulo: 'Justificativa', tipo: 't', largura: 32 }, { titulo: 'Horário do turno', tipo: 't', largura: 16 },
+        { titulo: 'Chegada', tipo: 't', largura: 10 }, { titulo: 'Atraso (min)', tipo: 'n', largura: 12 }, { titulo: 'Saída', tipo: 't', largura: 9 },
+        { titulo: 'Situação', tipo: 't', largura: 20 }, { titulo: 'Registrado em', tipo: 't', largura: 26 }] },
+      { nome: 'Envios dos times', linhas: D.linhasEnvios(extra.envios), colunas: [
+        { titulo: 'Data', tipo: 'd', largura: 12 }, { titulo: 'Time', tipo: 't', largura: 9 },
+        { titulo: 'Efetivo informado', tipo: 'n', largura: 18 }, { titulo: 'Enviado em', tipo: 't', largura: 26 }] },
+    ] : [];
 
     return [
       { nome: 'Resumo por dia', linhas: resumo, colunas: [
@@ -239,11 +279,12 @@ ${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxm
         { titulo: 'Time', tipo: 't', largura: 9 }, { titulo: 'Ausências', tipo: 'n', largura: 11 },
         { titulo: 'Datas', tipo: 't', largura: 30 }, { titulo: 'Mesmo dia da semana', tipo: 't', largura: 20 },
         { titulo: 'Motivos', tipo: 't', largura: 34 }] },
+      ...abasLideres,
       { nome: ABA_BACKUP, oculta: true, linhas: pedacos, colunas: [{ titulo: 'Backup do sistema de absenteísmo. Não altere esta aba.', tipo: 't', largura: 60 }] },
     ];
   }
 
-  function gerarExcel(base, agora) { return gerarXlsx(abasDaBase(base), agora); }
+  function gerarExcel(base, agora, extra) { return gerarXlsx(abasDaBase(base, extra), agora); }
 
   // Lê a aba escondida de backup e devolve a base. Funciona mesmo depois do Excel salvar por cima.
   async function lerBackupDoExcel(bytes) {
@@ -284,7 +325,51 @@ ${abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxm
     return base;
   }
 
-  const Excel = { gerarXlsx, gerarExcel, abasDaBase, lerBackupDoExcel, zipar, deszipar, crc32, serialExcel, letraColuna };
+  // Lê todas as abas visíveis: [{ nome, linhas: [[texto, ...], ...] }]. Limita linhas e colunas.
+  async function lerPlanilhas(bytes, opcoes) {
+    const maxLinhas = (opcoes && opcoes.maxLinhas) || 5000, maxColunas = 30;
+    const z = await deszipar(bytes);
+    const txt = k => (z[k] ? new TextDecoder().decode(z[k]) : '');
+    const attrs = tag => { const o = {}; tag.replace(/([\w:]+)="([^"]*)"/g, (_, k, v) => { o[k] = desescXml(v); }); return o; };
+    const abas = (txt('xl/workbook.xml').match(/<sheet\b[^>]*\/?>/g) || []).map(attrs);
+    if (!abas.length) throw new Error('Não achei nenhuma aba nesse arquivo. Ele é um Excel (.xlsx)?');
+    const rels = (txt('xl/_rels/workbook.xml.rels').match(/<Relationship\b[^>]*\/?>/g) || []).map(attrs);
+    const textoT = x => (x.match(/<t\b[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => desescXml(t.replace(/^<t\b[^>]*>|<\/t>$/g, ''))).join('');
+    const compartilhados = (txt('xl/sharedStrings.xml').match(/<si>[\s\S]*?<\/si>/g) || []).map(textoT);
+    const indiceColuna = letras => letras.split('').reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+    const saida = [];
+    for (const a of abas) {
+      if (a.state === 'hidden' || a.state === 'veryHidden' || a.name === ABA_BACKUP) continue;
+      const rel = rels.find(r => r.Id === a['r:id']);
+      if (!rel) continue;
+      const caminho = rel.Target.startsWith('/') ? rel.Target.slice(1) : 'xl/' + rel.Target.replace(/^\.\//, '');
+      const xml = txt(caminho);
+      const linhas = [];
+      const re = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+      let m;
+      while ((m = re.exec(xml))) {
+        const at = attrs(m[1]);
+        const ref = /^([A-Z]{1,3})(\d+)$/.exec(at.r || '');
+        if (!ref) continue;
+        const lin = +ref[2] - 1, col = indiceColuna(ref[1]);
+        if (lin >= maxLinhas + 1 || col >= maxColunas) continue;
+        const corpo = m[2] || '';
+        const v = (corpo.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        let valor = '';
+        if (at.t === 'inlineStr') valor = textoT(corpo);
+        else if (at.t === 's') valor = compartilhados[+v] || '';
+        else if (v != null) valor = desescXml(v);
+        if (/^-?\d+\.0+$/.test(valor)) valor = valor.replace(/\.0+$/, '');
+        (linhas[lin] = linhas[lin] || [])[col] = String(valor);
+      }
+      const limpas = [];
+      for (let i = 0; i < linhas.length; i++) { const l = linhas[i] || []; limpas.push(Array.from({ length: l.length }, (_, k) => (l[k] == null ? '' : l[k]))); }
+      saida.push({ nome: a.name, linhas: limpas });
+    }
+    return saida;
+  }
+
+  const Excel = { lerPlanilhas, gerarXlsx, gerarExcel, abasDaBase, lerBackupDoExcel, zipar, deszipar, crc32, serialExcel, letraColuna };
   if (typeof module !== 'undefined' && module.exports) module.exports = Excel;
   else raiz.Excel = Excel;
 })(typeof window !== 'undefined' ? window : globalThis);
