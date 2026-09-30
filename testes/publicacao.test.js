@@ -48,3 +48,11 @@ test('os cabeçalhos repetem a política do HTML e proíbem ser aberto dentro de
 test('o manifesto envia o cookie de acesso (necessário atrás do Cloudflare Access)', () => {
   assert.match(html, /<link rel="manifest" href="manifest\.webmanifest" crossorigin="use-credentials">/);
 });
+
+test('a versão mostrada na tela é a mesma do cache offline (mudou o sistema, mude os dois)', () => {
+  const cfg = fs.readFileSync(path.join(RAIZ, 'config.js'), 'utf8');
+  const naTela = (cfg.match(/versao: 'v(\d+)/) || [])[1];
+  const nocache = (sw.match(/absenteismo-v(\d+)/) || [])[1];
+  assert.ok(naTela && nocache, 'versão não encontrada');
+  assert.equal(naTela, nocache);
+});

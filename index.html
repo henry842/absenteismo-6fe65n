@@ -54,7 +54,9 @@
           <button class="botao neutro p so-compacto" id="btnMenuAjustes"><i data-i="settings"></i>Ajustes</button>
           <button class="botao neutro p" id="btnSincronizarAgora"><i data-i="nuvem"></i>Sincronizar agora</button>
           <button class="botao neutro p" id="btnTrocarSenha"><i data-i="key"></i>Trocar minha senha</button>
+          <button class="botao neutro p" id="btnAtualizarSistema"><i data-i="nuvem"></i>Atualizar o sistema</button>
           <button class="botao neutro p" id="btnSair"><i data-i="sair"></i>Sair desta conta</button>
+          <div class="versao" id="versaoMenu"></div>
         </div>
       </div>
     </header>
@@ -354,6 +356,7 @@
         </div>
       </form>
     </div>
+    <p class="versao" id="versaoLogin"></p>
   </div>
 </div>
 
@@ -376,6 +379,9 @@
   </div>
 </div>
 
+<div id="avisoAtualizacao" class="aviso-atualizacao" hidden role="status">
+  <span>Tem uma versão nova do sistema.</span><button class="botao p" id="btnAtualizarAgora" type="button">Atualizar agora</button>
+</div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js" integrity="sha384-AkNSQdptcXlJ0/NBZc4qGk86cDVXcCevwoWgEKIpHOEfbvlXGLlIkimQtONt8KNf" crossorigin="anonymous"></script>

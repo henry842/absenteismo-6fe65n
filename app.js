@@ -1455,9 +1455,33 @@ if (window.top !== window.self) {
     mostrarLogin('entrar');
   }
 
+  // Versão na tela (para saber se o aparelho está com a mais nova) e aviso quando sai uma versão nova.
+  // O aplicativo instalado no celular fica dias na memória: por isso ele procura versão nova toda vez que volta para a frente.
+  const textoVersao = 'Versão ' + ((window.CONFIG && window.CONFIG.versao) || 'em desenvolvimento');
+  $('#versaoLogin').textContent = textoVersao; $('#versaoMenu').textContent = textoVersao;
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && location.hostname !== 'localhost') {
-    navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service worker', e));
+    let tinhaControlador = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!tinhaControlador) { tinhaControlador = true; return; }   // primeira instalação: não há versão velha aberta
+      $('#avisoAtualizacao').hidden = false;
+    });
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => { /* sem internet */ }); });
+    }).catch(e => console.warn('Service worker', e));
   }
+  $('#btnAtualizarAgora').addEventListener('click', () => location.reload());
+  // Atualizar de vez: apaga a cópia guardada do sistema e recarrega. Não mexe nos dados nem no que ainda não foi enviado.
+  $('#btnAtualizarSistema').addEventListener('click', async () => {
+    $('#menuUsuario').hidden = true;
+    if (!navigator.onLine) return aviso('Sem internet: conecte-se para atualizar o sistema.');
+    aviso('Atualizando o sistema…');
+    try {
+      const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
+      await Promise.all(regs.map(r => r.unregister()));
+      if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+    } catch (e) { /* recarrega do mesmo jeito */ }
+    location.reload();
+  });
 
   window.Painel.ligar({ ic, esc, aviso, copiar, hoje, vazio, irPara, aoReceberDosLideres: redesenharAtual,
     resumoDoDia: resumoAjustado, indicadoresHTML, textoSuperiorHTML, textoSuperiorAtual, ligarTextoSuperior, abrirWhatsApp });
