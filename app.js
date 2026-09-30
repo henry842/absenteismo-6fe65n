@@ -82,6 +82,31 @@ if (window.top !== window.self) {
     if (!(opcoes && opcoes.semExcel)) salvarExcel(true);
   }
   let sinc = null; // criado mais abaixo (login e sincronização)
+  const usuarioAtual = () => (sinc && sinc.estado && sinc.estado.email) || '';
+
+  // Lixeira deste aparelho (30 dias): apagados, substituídos por correção e perdidos em conflito de sincronização
+  const CHAVE_LIXEIRA = 'absenteismo.lixeira';
+  function lerLixeira() {
+    try { return L.limparLixeira(JSON.parse(localStorage.getItem(CHAVE_LIXEIRA)) || []); } catch (e) { return []; }
+  }
+  function gravarLixeira(lx) {
+    try { localStorage.setItem(CHAVE_LIXEIRA, JSON.stringify(lx)); }
+    catch (e) { console.warn('Lixeira cheia; itens mais antigos descartados'); try { localStorage.setItem(CHAVE_LIXEIRA, JSON.stringify(lx.slice(0, 50))); } catch (e2) { /* sem espaço */ } }
+  }
+  function mandarParaLixeira(fechamentos, motivo) {
+    let lx = lerLixeira();
+    for (const f of fechamentos) lx = L.paraLixeira(lx, f, motivo, usuarioAtual());
+    gravarLixeira(lx);
+  }
+  // Apaga um lançamento guardando uma cópia na lixeira
+  function apagarLancamento(chave) {
+    const f = base.fechamentos[chave];
+    if (!f) return null;
+    mandarParaLixeira([f], 'apagado');
+    delete base.fechamentos[chave];
+    salvar();
+    return f;
+  }
   function lerPreferencia(k) { try { return localStorage.getItem('absenteismo.' + k); } catch (e) { return null; } }
   function gravarPreferencia(k, v) { try { localStorage.setItem('absenteismo.' + k, v); } catch (e) { /* sem problema */ } }
 
@@ -224,7 +249,7 @@ if (window.top !== window.self) {
     if (aba === 'colar') desenharColar();
     if (aba === 'conferencia') desenharConferencia();
     if (aba === 'dia') desenharDia();
-    if (aba === 'historico') { desenharBusca(); desenharPeriodo(); }
+    if (aba === 'historico') { desenharBusca(); desenharPeriodo(); desenharLixeira(); }
     if (aba === 'ajustes') desenharAjustes();
     window.scrollTo(0, 0);
   }
@@ -512,7 +537,11 @@ if (window.top !== window.self) {
       if (p.motivoEraDesconhecido && chaveApelido && p.motivo !== 'Outros' && !['__proto__', 'constructor', 'prototype'].includes(chaveApelido))
         base.config.apelidos[chaveApelido] = p.motivo;
     }
-    base = L.gravar(base, m);
+    // O que já estava gravado para o mesmo time/dia (ou o lançamento sendo corrigido) vai para a lixeira
+    const chaveNova = L.chaveFechamento(m.data, m.time);
+    const substituidos = [...new Set([chaveNova, m.substitui].filter(Boolean))].map(k => base.fechamentos[k]).filter(Boolean);
+    if (substituidos.length) mandarParaLixeira(substituidos, 'substituido');
+    base = L.gravar(base, m, undefined, usuarioAtual());
     salvar();
     fila = fila.filter(x => x !== m);
     atualizarContador();
@@ -682,9 +711,9 @@ if (window.top !== window.self) {
     ligarCobranca(cobranca);
     alvo.querySelectorAll('[data-apagar]').forEach(b => b.onclick = () => {
       const t = b.dataset.apagar;
-      if (!confirm(`Apagar o lançamento do ${t} de ${L.dataBR(data)}?`)) return;
-      delete base.fechamentos[L.chaveFechamento(data, t)];
-      salvar(); desenharDia(); aviso(`${t} apagado.`);
+      if (!confirm(`Apagar o lançamento do ${t} de ${L.dataBR(data)}?\n\nEle fica ${L.DIAS_LIXEIRA} dias na Lixeira (Histórico) e pode ser restaurado.`)) return;
+      apagarLancamento(L.chaveFechamento(data, t));
+      desenharDia(); aviso(`${t} apagado. Dá para restaurar na Lixeira, em Histórico.`);
     });
   }
 
@@ -791,9 +820,9 @@ if (window.top !== window.self) {
     sel.onchange = e => { desenharPeriodo.timeLanc = e.target.value; desenharPeriodo(); };
     document.querySelectorAll('[data-apagar-lanc]').forEach(b => b.onclick = () => {
       const f = base.fechamentos[b.dataset.apagarLanc]; if (!f) return;
-      if (!confirm(`Apagar o lançamento do ${f.time} de ${L.dataBR(f.data)}?\n\n${f.efetivo} pessoas, ${f.ausentes} ausente(s). Some no celular e no computador.`)) return;
-      delete base.fechamentos[b.dataset.apagarLanc];
-      salvar(); desenharPeriodo(); aviso(`${f.time} de ${L.dataBR(f.data)} apagado.`);
+      if (!confirm(`Apagar o lançamento do ${f.time} de ${L.dataBR(f.data)}?\n\n${f.efetivo} pessoas, ${f.ausentes} ausente(s). Some no celular e no computador, mas fica ${L.DIAS_LIXEIRA} dias na Lixeira deste aparelho para restaurar.`)) return;
+      apagarLancamento(b.dataset.apagarLanc);
+      desenharPeriodo(); desenharLixeira(); aviso(`${f.time} de ${L.dataBR(f.data)} apagado. Está na Lixeira.`);
     });
     document.querySelectorAll('[data-corrigir-lanc]').forEach(b => b.onclick = () => {
       const k = b.dataset.corrigirLanc, f = base.fechamentos[k]; if (!f) return;
@@ -804,6 +833,37 @@ if (window.top !== window.self) {
       }
       aviso(`${f.time} de ${L.dataBR(f.data)} aberto na Conferência. Corrija e clique em Gravar.`);
       irPara('conferencia');
+    });
+  }
+
+  const ROTULO_LIXEIRA = { apagado: 'Apagado', 'apagar-tudo': 'Apagar tudo', substituido: 'Substituído por correção', conflito: 'Mudado em outro aparelho', 'restaurar-backup': 'Trocado por backup' };
+  function desenharLixeira() {
+    const alvo = $('#lixeira');
+    if (!alvo) return;
+    const lx = lerLixeira();
+    const quando = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); };
+    alvo.innerHTML = `<div class="cartao nao-imprimir">
+      <div class="cartao-topo">
+        <div class="ladrilho p vermelho">${ic('trash')}</div>
+        <div><h3>Lixeira (${lx.length})</h3><p>Lançamentos apagados, substituídos por correção ou mudados em outro aparelho ficam aqui ${L.DIAS_LIXEIRA} dias. Restaurar volta o lançamento como estava.</p></div>
+      </div>
+      ${lx.length ? `<div class="tabela-rolar" style="max-height:360px;overflow-y:auto"><table class="cinza">
+        <thead><tr><th>Quando</th><th>O quê</th><th>Lançamento</th><th class="num">Total</th><th class="num">Ausentes</th><th></th></tr></thead>
+        <tbody>${lx.map(i => `<tr>
+          <td style="font-size:14px">${esc(quando(i.apagadoEm))}${i.apagadoPor ? `<br><span style="color:var(--fraco)">${esc(i.apagadoPor)}</span>` : ''}</td>
+          <td><span class="etiqueta">${esc(ROTULO_LIXEIRA[i.motivo] || i.motivo)}</span></td>
+          <td><b>${esc(i.fechamento.time)}</b> · ${L.dataBR(i.fechamento.data)}</td>
+          <td class="num">${i.fechamento.efetivo}</td><td class="num">${i.fechamento.ausentes}</td>
+          <td><button class="botao sec" data-restaurar="${esc(i.id)}">${ic('history')}Restaurar</button></td></tr>`).join('')}</tbody>
+      </table></div>` : vazio('trash', 'A lixeira está vazia.')}
+    </div>`;
+    alvo.querySelectorAll('[data-restaurar]').forEach(b => b.onclick = () => {
+      const item = lx.find(i => i.id === b.dataset.restaurar); if (!item) return;
+      const f = item.fechamento, k = L.chaveFechamento(f.data, f.time);
+      if (!confirm(`Restaurar o ${f.time} de ${L.dataBR(f.data)} (${f.efetivo} pessoas, ${f.ausentes} ausente(s))?${base.fechamentos[k] ? '\n\nJá existe um lançamento desse time nesse dia: ele vai para a Lixeira no lugar.' : ''}`)) return;
+      const r = L.restaurarDaLixeira(base, lx, item.id, usuarioAtual());
+      base = completar(r.base); gravarLixeira(r.lixeira); salvar();
+      desenharPeriodo(); desenharLixeira(); aviso(`${f.time} de ${L.dataBR(f.data)} restaurado.`);
     });
   }
 
@@ -938,6 +998,7 @@ if (window.top !== window.self) {
 
   function desenharAjustes() {
     mostrarEstadoExcel();
+    desenharInfoBackup();
     $('#cfgMeta').value = base.config.meta ? +(base.config.meta * 100).toFixed(2) : '';
     $('#cfgArea').value = base.config.area || '';
     const times = base.config.times.length ? base.config.times
@@ -1000,7 +1061,21 @@ if (window.top !== window.self) {
   $('#btnCopiarModelo').addEventListener('click', async () =>
     aviso(await copiar($('#previaModelo').textContent) ? 'Modelo copiado. Cole no grupo dos líderes.' : 'Não consegui copiar.'));
 
-  $('#btnBackup').addEventListener('click', () => baixar(`absenteismo-backup-${hoje()}.json`, JSON.stringify(base, null, 1), 'application/json'));
+  $('#btnBackup').addEventListener('click', () => {
+    baixar(`absenteismo-backup-${hoje()}.json`, JSON.stringify(base, null, 1), 'application/json');
+    gravarPreferencia('ultimoBackup', new Date().toISOString()); desenharInfoBackup();
+  });
+  // Lembra de baixar backup (guarde o arquivo fora deste aparelho: e-mail, pen drive, nuvem da empresa)
+  function desenharInfoBackup() {
+    const el = $('#infoBackup'); if (!el) return;
+    const n = Object.keys(base.fechamentos).length;
+    const ult = lerPreferencia('ultimoBackup');
+    const dias = ult ? Math.floor((Date.now() - new Date(ult).getTime()) / 86400000) : null;
+    const atrasado = n && (dias == null || dias >= 7);
+    el.innerHTML = `<div class="caixa-aviso ${atrasado ? 'amarelo' : 'info'}" style="margin-bottom:12px">${ic(atrasado ? 'alert' : 'info')}<span>${
+      ult ? `Último backup baixado neste aparelho: ${esc(new Date(ult).toLocaleDateString('pt-BR'))} (${dias === 0 ? 'hoje' : `há ${dias} dia(s)`}).` : 'Nenhum backup baixado neste aparelho ainda.'}${
+      atrasado ? ' Baixe um backup e guarde fora do aparelho (e-mail, pen drive ou nuvem da empresa). De vez em quando, teste restaurar.' : ''}</span></div>`;
+  }
   $('#arqBackup').addEventListener('change', async e => {
     const arq = e.target.files[0]; if (!arq) return;
     e.target.value = '';
@@ -1016,17 +1091,26 @@ if (window.top !== window.self) {
       return;
     }
     const n = Object.keys(b.fechamentos).length;
-    if (!confirm(`O arquivo tem ${n} lançamento(s). Ele vai SUBSTITUIR os dados atuais (${Object.keys(base.fechamentos).length} lançamento(s)). Continuar?`)) return;
-    base = completar(b);
+    if (!confirm(`O arquivo tem ${n} lançamento(s). Ele vai SUBSTITUIR os dados atuais (${Object.keys(base.fechamentos).length} lançamento(s)). Continuar?\n\nOs lançamentos atuais ficam ${L.DIAS_LIXEIRA} dias na Lixeira.`)) return;
+    const novos = completar(b);
+    // Só vai para a lixeira o que o backup muda ou não tem (o resto continua igual)
+    mandarParaLixeira(Object.entries(base.fechamentos).filter(([k, f]) => JSON.stringify(novos.fechamentos[k]) !== JSON.stringify(f)).map(([, f]) => f), 'restaurar-backup');
+    base = novos;
     salvar(); desenharAjustes(); aviso('Dados restaurados.');
   });
   $('#btnCsvAusencias').addEventListener('click', () => baixar(`ausencias-${hoje()}.csv`, L.csvAusencias(base), 'text/csv;charset=utf-8'));
   $('#btnCsvFechamentos').addEventListener('click', () => baixar(`totais-por-time-${hoje()}.csv`, L.csvFechamentos(base), 'text/csv;charset=utf-8'));
   $('#btnApagarTudo').addEventListener('click', () => {
-    if (!confirm('Apagar TODOS os lançamentos da sua conta? Some no celular e no computador. Baixe um backup antes.')) return;
-    if (!confirm('Tem certeza? Não dá para desfazer.\n\nO arquivo Excel NÃO será apagado: ele fica com os dados antigos, como backup.')) return;
+    const n = Object.keys(base.fechamentos).length;
+    if (!n) { aviso('Não há lançamentos para apagar.'); return; }
+    if (!confirm(`Apagar TODOS os ${n} lançamentos da sua conta? Some no celular e no computador. Baixe um backup antes.`)) return;
+    // Confirmação digitada: evita apagar tudo com um toque sem querer
+    if ((prompt(`Para confirmar, digite APAGAR.\n\nOs ${n} lançamentos ficam ${L.DIAS_LIXEIRA} dias na Lixeira deste aparelho (até 500), e o arquivo Excel NÃO é apagado.`) || '').trim().toUpperCase() !== 'APAGAR') {
+      aviso('Nada foi apagado.'); return;
+    }
+    mandarParaLixeira(Object.values(base.fechamentos), 'apagar-tudo');
     const config = base.config;
-    base = L.baseVazia(); base.config = config; salvar({ semExcel: true }); aviso('Dados apagados. O Excel ficou como backup.');
+    base = L.baseVazia(); base.config = config; salvar({ semExcel: true }); aviso('Dados apagados. Estão na Lixeira (Histórico) e o Excel ficou como backup.');
   });
 
   // ---------- Login e sincronização entre aparelhos ----------
@@ -1036,7 +1120,7 @@ if (window.top !== window.self) {
     if (a === 'colar') desenharColar();
     if (a === 'conferencia') atualizarBotaoTodos();
     if (a === 'dia') desenharDia();
-    if (a === 'historico') { desenharBusca(); desenharPeriodo(); }
+    if (a === 'historico') { desenharBusca(); desenharPeriodo(); desenharLixeira(); }
   }
 
   function mostrarSinc(info) {
@@ -1064,6 +1148,11 @@ if (window.top !== window.self) {
     sinc = window.Sincronia.criar({
       url: window.CONFIG.supabaseUrl, chave: window.CONFIG.supabaseChave,
       pegarBase: () => base, trocarBase, aoMudarEstado: mostrarSinc, aoReceber: redesenharAtual,
+      // O mesmo lançamento foi mudado em outro aparelho antes de sincronizar: vale o daqui, o de lá vai para a lixeira
+      aoConflito: conflitos => {
+        mandarParaLixeira(conflitos.map(c => c.dados), 'conflito');
+        aviso(`${conflitos.length} lançamento(s) também foram mudados em outro aparelho. Ficou a versão deste; a outra está na Lixeira.`);
+      },
     });
   }
 
@@ -1091,16 +1180,28 @@ if (window.top !== window.self) {
     }[m];
     msgLogin('');
   }
+  // Mensagens de erro do login: nunca repassam o texto interno do servidor e não dizem se um e-mail tem conta
+  // (quem tenta adivinhar e-mails recebe sempre a mesma resposta).
   function traduzirErro(e) {
     const t = String((e && e.message) || e || '');
     if (/invalid login credentials/i.test(t)) return 'E-mail ou senha errados.';
     if (/email not confirmed/i.test(t)) return 'Falta confirmar o e-mail: abra o link que chegou na sua caixa de entrada (veja também o spam).';
-    if (/already registered|already been registered/i.test(t)) return 'Esse e-mail já tem conta. Use "Já tenho conta" para entrar.';
-    if (/password should be at least|weak password/i.test(t)) return 'Senha muito curta ou fraca. Use pelo menos 6 caracteres.';
+    if (/already registered|already been registered|não autorizado|nao autorizado|database error saving new user/i.test(t))
+      return 'Não foi possível criar a conta com esse e-mail. Se você já tem conta, use "Já tenho conta"; se não, peça ao supervisor para liberar o seu acesso.';
+    if (/password should be at least|weak password|pwned|leaked/i.test(t)) return 'Senha fraca ou já vazada em outros sites. Use pelo menos 8 caracteres, com letras e números.';
     if (/rate limit|too many/i.test(t)) return 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.';
     if (/fetch|network/i.test(t)) return 'Sem internet. Conecte-se e tente de novo.';
-    return 'Não deu certo: ' + t;
+    console.warn('Login', e && (e.code || e.status || e.name));
+    return 'Não deu certo. Tente de novo em instantes.';
   }
+  // Senha nova: mínimo 8 caracteres, com letra e número (o servidor também confere)
+  function senhaFraca(s) {
+    if (s.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.';
+    if (!/[A-Za-zÀ-ÿ]/.test(s) || !/\d/.test(s)) return 'Use letras e números na senha.';
+    return '';
+  }
+  // Depois de 3 erros seguidos, espera um pouco antes de deixar tentar de novo (o servidor também limita)
+  const tentativasLogin = { erros: 0, liberaEm: 0 };
   function mostrarLogin(m) {
     modo(m || 'entrar');
     $('#telaLogin').hidden = false;
@@ -1114,24 +1215,32 @@ if (window.top !== window.self) {
     if (!email) { msgLogin('Digite seu e-mail acima e clique de novo em "Esqueci a senha".', 'info'); return; }
     const { error } = await sinc.supa.auth.resetPasswordForEmail(email, { redirectTo: enderecoApp() });
     if (error) msgLogin(traduzirErro(error));
-    else msgLogin('Enviamos um link para o seu e-mail. Abra ele neste aparelho para criar uma senha nova.', 'ok');
+    else msgLogin('Se esse e-mail tiver conta, enviamos um link para ele. Abra o link neste aparelho para criar uma senha nova.', 'ok');
   });
 
   $('#formLogin').addEventListener('submit', async e => {
     e.preventDefault();
     const email = $('#loginEmail').value.trim(), senha = $('#loginSenha').value, senha2 = $('#loginSenha2').value;
     if (modoLogin !== 'entrar' && senha !== senha2) { msgLogin('As duas senhas estão diferentes.'); return; }
+    if (modoLogin !== 'entrar' && senhaFraca(senha)) { msgLogin(senhaFraca(senha)); return; }
+    const espera = Math.ceil((tentativasLogin.liberaEm - Date.now()) / 1000);
+    if (espera > 0) { msgLogin(`Muitas tentativas erradas. Espere ${espera} segundo(s) e tente de novo.`); return; }
     const botao = $('#btnEntrar'); botao.disabled = true;
     try {
       if (modoLogin === 'entrar') {
         const { data, error } = await sinc.supa.auth.signInWithPassword({ email, password: senha });
-        if (error) throw error;
+        if (error) {
+          if (/invalid login credentials/i.test(error.message || '') && ++tentativasLogin.erros >= 3)
+            tentativasLogin.liberaEm = Date.now() + Math.min(300, 15 * 2 ** (tentativasLogin.erros - 3)) * 1000;
+          throw error;
+        }
+        tentativasLogin.erros = 0;
         await entrar(data.user);
       } else if (modoLogin === 'criar') {
         const { data, error } = await sinc.supa.auth.signUp({ email, password: senha, options: { emailRedirectTo: enderecoApp() } });
         if (error) throw error;
         if (data.session) await entrar(data.user);
-        else { modo('entrar'); $('#loginEmail').value = email; msgLogin('Conta criada! Abra o e-mail de confirmação que enviamos e depois entre aqui com sua senha.', 'ok'); }
+        else { modo('entrar'); $('#loginEmail').value = email; msgLogin('Pronto! Se o cadastro foi liberado, chegou um e-mail de confirmação: abra o link e depois entre aqui com sua senha.', 'ok'); }
       } else {
         const { data, error } = await sinc.supa.auth.updateUser({ password: senha });
         if (error) throw error;
@@ -1150,6 +1259,8 @@ if (window.top !== window.self) {
     $('#nomeUsuario').textContent = email.split('@')[0];
     $('#iniciais').textContent = (email.replace(/[^a-z]/gi, '').slice(0, 2) || '?').toUpperCase();
     const n = Object.keys(base.fechamentos).length;
+    // Outra conta neste aparelho: a lixeira da conta anterior não pode aparecer para esta
+    if (sinc.estado.usuario && sinc.estado.usuario !== usuario.id) { try { localStorage.removeItem(CHAVE_LIXEIRA); } catch (e) { /* ok */ } }
     await sinc.prepararUsuario(usuario, async () =>
       confirm(`Este aparelho já tem ${n} lançamento(s) de antes do login.\n\nEnviar para a sua conta, para aparecerem também nos outros aparelhos?\n\n(OK = enviar · Cancelar = descartar deste aparelho)`));
     redesenharAtual();
@@ -1167,6 +1278,7 @@ if (window.top !== window.self) {
     $('#menuUsuario').hidden = true;
     try { await sinc.supa.auth.signOut(); } catch (e) { /* sem internet: sai do mesmo jeito */ }
     sinc.esquecer();
+    try { localStorage.removeItem(CHAVE_LIXEIRA); } catch (e) { /* ok */ } // lixeira tem dados de pessoas: não fica no aparelho
     fila = []; atualizarContador();
     trocarBase(null);
     irPara('colar');

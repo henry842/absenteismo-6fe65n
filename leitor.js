@@ -525,7 +525,8 @@
   }
 
   // Grava a mensagem conferida na base (devolve uma base nova, não altera a original).
-  function gravar(base, m, agora) {
+  // por: quem gravou (e-mail da conta), para a trilha de quem alterou o quê
+  function gravar(base, m, agora, por) {
     const nova = JSON.parse(JSON.stringify(base || baseVazia()));
     const f = {
       data: m.data, time: m.time, turno: m.turno || null,
@@ -533,6 +534,7 @@
       pessoas: m.pessoas.map(p => ({ matricula: p.matricula, nome: p.nome, motivo: p.motivo, motivoOriginal: p.motivoOriginal })),
       texto: m.texto || '',
       confirmadoEm: agora || new Date().toISOString(),
+      confirmadoPor: por || '',
     };
     // Correção de um lançamento: se mudou o time ou a data, o original sai (não fica duplicado)
     if (m.substitui && m.substitui !== chaveFechamento(m.data, m.time)) delete nova.fechamentos[m.substitui];
@@ -581,7 +583,42 @@
       pessoas: (Array.isArray(f.pessoas) ? f.pessoas : []).slice(0, 2000).map(sanearPessoa).filter(Boolean),
       texto: texto(f.texto, 20000),
       confirmadoEm: texto(f.confirmadoEm, 40),
+      confirmadoPor: texto(f.confirmadoPor, 120),
     };
+  }
+
+  // ---------- Lixeira: nada apagado some de vez ----------
+  // Lançamento apagado, substituído por uma correção ou perdido num conflito de sincronização fica aqui
+  // por 30 dias (no máximo 500 itens) e pode ser restaurado. Tudo passa pela mesma limpeza da base.
+  const DIAS_LIXEIRA = 30, MAX_LIXEIRA = 500;
+  const MOTIVOS_LIXEIRA = ['apagado', 'apagar-tudo', 'substituido', 'conflito', 'restaurar-backup'];
+  function paraLixeira(lixeira, fechamento, motivo, por, agora) {
+    const f = sanearFechamento(fechamento);
+    if (!f) return lixeira || [];
+    const em = agora || new Date().toISOString();
+    const item = { id: `${em}|${chaveFechamento(f.data, f.time)}|${Math.random().toString(36).slice(2, 8)}`, apagadoEm: em,
+      apagadoPor: texto(por, 120), motivo: MOTIVOS_LIXEIRA.includes(motivo) ? motivo : 'apagado', fechamento: f };
+    return limparLixeira([item].concat(lixeira || []), em);
+  }
+  function limparLixeira(lixeira, agora) {
+    const limite = new Date(new Date(agora || Date.now()).getTime() - DIAS_LIXEIRA * 86400000).toISOString();
+    return (Array.isArray(lixeira) ? lixeira : [])
+      .map(i => objeto(i) && sanearFechamento(i.fechamento) ? { id: texto(i.id, 120), apagadoEm: texto(i.apagadoEm, 40), apagadoPor: texto(i.apagadoPor, 120),
+        motivo: MOTIVOS_LIXEIRA.includes(i.motivo) ? i.motivo : 'apagado', fechamento: sanearFechamento(i.fechamento) } : null)
+      .filter(i => i && i.id && i.apagadoEm >= limite)
+      .sort((a, b) => b.apagadoEm.localeCompare(a.apagadoEm))
+      .slice(0, MAX_LIXEIRA);
+  }
+  // Devolve { base, lixeira }. Se já existe lançamento do mesmo time e dia, ele vai para a lixeira no lugar.
+  function restaurarDaLixeira(base, lixeira, id, por, agora) {
+    const item = (lixeira || []).find(i => i.id === id);
+    if (!item) return { base, lixeira };
+    const nova = JSON.parse(JSON.stringify(base));
+    const k = chaveFechamento(item.fechamento.data, item.fechamento.time);
+    let lx = (lixeira || []).filter(i => i.id !== id);
+    if (nova.fechamentos[k]) lx = paraLixeira(lx, nova.fechamentos[k], 'substituido', por, agora);
+    nova.fechamentos[k] = item.fechamento;
+    return { base: nova, lixeira: lx };
   }
 
   function sanearBase(b) {
@@ -974,7 +1011,8 @@
     lerMensagens, completarNumeros, conferir, gravar, baseVazia, chaveFechamento,
     resumoDoDia, textoWhatsApp, historicoPessoa, csvAusencias, csvFechamentos, dataBR, pct, nomeBonito,
     DIAS_SEMANA, diaDaSemana, somarDias, faltasDoFechamento, efetivoNormal, ausenciasDaPessoa, sanearBase,
-    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, modeloOrientacao, preencherModelo, mensagemDoFechamento, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,
+    seta, acimaDaMeta, pctMeta, textoSuperior, textoCobranca, textoModelo, textoOrientacao, exemploPadrao, modeloOrientacao, preencherModelo, mensagemDoFechamento,
+    paraLixeira, limparLixeira, restaurarDaLixeira, DIAS_LIXEIRA, completarTimes, secaoMotivo, resumoPeriodo, alertasReincidencia, textoPeriodo,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Leitor;

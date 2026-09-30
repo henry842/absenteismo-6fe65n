@@ -61,10 +61,27 @@
     return saida;
   }
 
-  async function inflar(bytes) {
-    const ds = new DecompressionStream('deflate-raw');
-    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
-    return new Uint8Array(buf);
+  // Limites contra "zip bomba" (arquivo pequeno que descompacta em gigabytes e trava o navegador)
+  const MAX_ARQUIVOS_ZIP = 2000;
+  const MAX_DESCOMPACTADO = 60 * 1024 * 1024;        // por arquivo dentro do .xlsx
+  const MAX_DESCOMPACTADO_TOTAL = 200 * 1024 * 1024; // soma de todos
+
+  // Descompacta lendo em pedaços e para assim que passa do limite (não confia no tamanho declarado no zip)
+  async function inflar(bytes, limite) {
+    const leitor = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    const partes = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      total += value.length;
+      if (total > limite) { try { await leitor.cancel(); } catch (e) { /* já parou */ } throw new Error('Arquivo Excel grande demais depois de descompactado.'); }
+      partes.push(value);
+    }
+    const saida = new Uint8Array(total);
+    let o = 0;
+    for (const p of partes) { saida.set(p, o); o += p.length; }
+    return saida;
   }
 
   // Devolve { 'caminho/no/zip': Uint8Array }
@@ -76,19 +93,25 @@
     }
     if (fimPos < 0) throw new Error('Não é um arquivo Excel (.xlsx).');
     const n = v.getUint16(fimPos + 10, true);
+    if (n > MAX_ARQUIVOS_ZIP) throw new Error('Arquivo Excel com partes demais.');
     let p = v.getUint32(fimPos + 16, true);
     const dec = new TextDecoder();
-    const saida = {};
+    const saida = Object.create(null); // nomes vêm do arquivo: sem protótipo, "__proto__" não vira problema
+    let restante = MAX_DESCOMPACTADO_TOTAL;
     for (let i = 0; i < n; i++) {
-      if (v.getUint32(p, true) !== 0x02014b50) throw new Error('Arquivo Excel corrompido.');
+      if (p + 46 > bytes.length || v.getUint32(p, true) !== 0x02014b50) throw new Error('Arquivo Excel corrompido.');
       const metodo = v.getUint16(p + 10, true);
       const tam = v.getUint32(p + 20, true);
       const nl = v.getUint16(p + 28, true), el = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true);
       const off = v.getUint32(p + 42, true);
+      if (off + 30 > bytes.length) throw new Error('Arquivo Excel corrompido.');
       const nome = dec.decode(bytes.subarray(p + 46, p + 46 + nl));
       const ini = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
+      if (ini + tam > bytes.length) throw new Error('Arquivo Excel corrompido.');
       const bruto = bytes.subarray(ini, ini + tam);
-      saida[nome] = metodo === 0 ? bruto : metodo === 8 ? await inflar(bruto) : null;
+      const conteudo = metodo === 0 ? bruto : metodo === 8 ? await inflar(bruto, Math.min(MAX_DESCOMPACTADO, restante)) : null;
+      if (conteudo) restante -= conteudo.length;
+      saida[nome] = conteudo;
       p += 46 + nl + el + cl;
     }
     return saida;

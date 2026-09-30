@@ -30,14 +30,23 @@
     return chaves.map(k => ({ chave: k, dados: k in atual ? JSON.parse(atual[k]) : null }));
   }
 
-  // Aplica o que veio do servidor. O que foi mudado aqui e ainda não subiu (pendente) vence.
-  // Devolve { base, espelho, mudou }
+  // Aplica o que veio do servidor. O que foi mudado aqui e ainda não subiu (pendente) vence, mas se o
+  // outro aparelho também mudou o mesmo lançamento, a versão dele volta em `conflitos` (para a lixeira),
+  // em vez de sumir sem ninguém ver.
+  // Devolve { base, espelho, mudou, conflitos }
   function aplicarRemotos(base, espelho, linhas, pendentes) {
     const nova = JSON.parse(JSON.stringify(base));
     const esp = Object.assign({}, espelho);
+    const conflitos = [];
     let mudou = false;
     for (const l of linhas) {
-      if (pendentes && pendentes[l.chave]) continue;
+      if (pendentes && pendentes[l.chave]) {
+        const texto = l.dados == null ? null : JSON.stringify(l.dados);
+        const local = nova.fechamentos[l.chave] ? JSON.stringify(nova.fechamentos[l.chave]) : null;
+        if (/\|/.test(l.chave) && l.dados != null && texto !== (espelho[l.chave] ?? null) && texto !== local)
+          conflitos.push({ chave: l.chave, dados: l.dados });
+        continue;
+      }
       const texto = l.dados == null ? null : JSON.stringify(l.dados);
       esp[l.chave] = texto;
       if (l.chave === 'config') {
@@ -50,7 +59,7 @@
         nova.fechamentos[l.chave] = l.dados; mudou = true;
       }
     }
-    return { base: nova, espelho: esp, mudou };
+    return { base: nova, espelho: esp, mudou, conflitos };
   }
 
   const Regras = { mapaDaBase, chavesMudadas, linhasParaEnviar, aplicarRemotos };
@@ -128,6 +137,7 @@
             if (!data.length) break;
             const r = aplicarRemotos(opcoes.pegarBase(), est.espelho, data, est.pendentes);
             est.espelho = r.espelho;
+            if (r.conflitos.length && opcoes.aoConflito) opcoes.aoConflito(r.conflitos);
             est.ultimaPuxada = data[data.length - 1].atualizado_em;
             if (r.mudou) { opcoes.trocarBase(r.base); mudouAlgo = true; }
             guardar();
