@@ -10,10 +10,11 @@ No ar: site novo (Cloudflare e GitHub Pages), função de administração e migr
 
 ## O que ainda depende de você
 1. ✅ O SQL que remove a regra do segundo passo no banco já foi rodado e conferido.
-2. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **4** (decisão do usuário em 30/09/2026; o padrão do Supabase é 6 e, se ele não aceitar menos que isso, o mínimo real é 6); validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
-3. ⚠️ **Backup:** o plano grátis do Supabase não faz cópia automática. Ou passar para o plano com backup diário, ou baixar o backup em Ajustes toda semana (o sistema avisa).
-4. ⚠️ **Item 99 (revisão humana):** peça a alguém de TI/segurança para ler `banco/estado-atual.sql` (regras de acesso) e decidir a política de dados de saúde (atestados): quem vê, por quanto tempo guarda. Isso é LGPD e não é decisão de programa.
-5. Avisar os líderes: no próximo acesso cada um vai criar a própria senha.
+2. ⚠️ **Cadastro de colaborador pelo líder (aba Equipe):** rodar no SQL Editor o arquivo `banco/migracoes/20260930c_lider_cadastra_colaborador.sql`. Só acrescenta uma regra e uma trava (o líder cadastra **só no próprio time**, só pessoa ativa, sem poder alterar nem apagar ninguém; matrícula repetida e mais de 500 por time são barrados) e não mexe em nenhum dado. Enquanto não rodar, a aba Equipe funciona (lista, perfil e indicadores) e o botão de cadastrar avisa que ainda não foi liberado. Depois de rodar, gerar o retrato do banco de novo (`banco/estado-atual.sql`).
+3. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **4** (decisão do usuário em 30/09/2026; o padrão do Supabase é 6 e, se ele não aceitar menos que isso, o mínimo real é 6); validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
+4. ⚠️ **Backup:** o plano grátis do Supabase não faz cópia automática. Ou passar para o plano com backup diário, ou baixar o backup em Ajustes toda semana (o sistema avisa).
+5. ⚠️ **Item 99 (revisão humana):** peça a alguém de TI/segurança para ler `banco/estado-atual.sql` (regras de acesso) e decidir a política de dados de saúde (atestados): quem vê, por quanto tempo guarda. Isso é LGPD e não é decisão de programa.
+6. Avisar os líderes: no próximo acesso cada um vai criar a própria senha.
 
 ## Item a item
 

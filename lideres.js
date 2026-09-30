@@ -497,7 +497,133 @@
   const diasSemBackup = (ultimoMs, agoraMs) => (Number.isFinite(ultimoMs) ? Math.max(0, Math.floor((agoraMs - ultimoMs) / 86400000)) : null);
   const deveSairPorInatividade = (ultimaAtividadeMs, agoraMs, limiteMin) => agoraMs - ultimaAtividadeMs >= limiteMin * 60000;
 
+  // ---------- Equipe: perfil do colaborador e KPIs ----------
+  const MIN_DIAS_TAXA = 5;          // com menos dias de histórico o % engana (uma falta em um dia seria 100%)
+  const MAX_NOME = 120, MAX_CARGO = 60, MAX_TURNO = 30, MAX_MATRICULA = 20;
+  const MAX_COLABORADORES = 500;    // o banco também trava nesse número, por time
+  const NOMES_DIA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  const somarDiasIso = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const diasEntre = (de, ate) => Math.round((Date.parse(ate + 'T12:00:00Z') - Date.parse(de + 'T12:00:00Z')) / 86400000);
+  const diaDaSemanaIso = iso => new Date(iso + 'T12:00:00Z').getUTCDay();   // 0 = domingo
+  const limpaTexto = s => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // "Maria Souza Lima" -> "ML"
+  function iniciais(nome) {
+    const p = limpaTexto(nome).split(' ').filter(Boolean);
+    if (!p.length) return '?';
+    const a = Array.from(p[0])[0], b = p.length > 1 ? Array.from(p[p.length - 1])[0] : '';
+    return (a + b).toUpperCase();
+  }
+
+  // Os lançamentos guardam matrícula e nome (não o id da pessoa). É a mesma regra do banco para "uma vez por dia":
+  // vale a matrícula quando os dois têm; senão vale o nome (sem acento nem maiúscula).
+  // Devolve um Map: id do colaborador -> lançamentos dele.
+  function lancamentosPorPessoa(funcs, lancs) {
+    const porMat = new Map(), porNome = new Map();
+    const guarda = (m, k, v) => { const l = m.get(k); if (l) l.push(v); else m.set(k, [v]); };
+    for (const l of lancs || []) {
+      if (l.matricula) guarda(porMat, String(l.matricula), l);
+      guarda(porNome, dobrar(l.nome), l);
+    }
+    const saida = new Map();
+    for (const f of funcs || []) {
+      const nome = porNome.get(dobrar(f.nome)) || [];
+      saida.set(f.id, f.matricula ? (porMat.get(String(f.matricula)) || []).concat(nome.filter(l => !l.matricula)) : nome);
+    }
+    return saida;
+  }
+
+  // O que a pessoa está hoje (ou no dia aberto): ausente, em atraso/atrasou, saiu mais cedo, ou null (sem ocorrência)
+  function situacaoNoDia(lancsDaPessoa) {
+    const l = lancsDaPessoa || [];
+    if (l.some(x => x.tipo === 'ausencia')) return { tipo: 'falta', rotulo: 'Ausente' };
+    const atr = l.find(x => x.tipo === 'atraso');
+    if (atr) return atrasoPendente(atr) ? { tipo: 'andamento', rotulo: 'Em atraso' } : { tipo: 'andamento', rotulo: 'Atrasou' };
+    if (l.some(x => x.tipo === 'saida')) return { tipo: 'saida', rotulo: 'Saiu mais cedo' };
+    return null;
+  }
+
+  const periodoDe = (hoje, dias) => ({ de: dias > 0 ? somarDiasIso(hoje, -(dias - 1)) : '', ate: hoje });
+  const dentroDe = (data, p) => data <= p.ate && (!p.de || data >= p.de);
+  // Quantos dias o time teve movimento no período (enviou o dia ou lançou alguém): é a base do %
+  function diasComMovimento(lancs, envios, hoje, dias, aPartirDe) {
+    const p = periodoDe(hoje, dias), vistos = new Set();
+    if (aPartirDe && aPartirDe > p.de) p.de = aPartirDe;      // quem entrou depois só conta os dias desde que entrou
+    for (const l of lancs || []) if (dentroDe(l.data, p)) vistos.add(l.data);
+    for (const e of envios || []) if (dentroDe(e.data, p)) vistos.add(e.data);
+    return vistos.size;
+  }
+
+  // Desde quando contar os dias de uma pessoa: o dia em que ela entrou no sistema, ou o primeiro lançamento dela se for mais antigo.
+  // Sem nenhuma das duas datas, conta tudo ('').
+  function inicioDaPessoa(f, ocorrencias) {
+    const datas = (ocorrencias || []).map(l => l.data);
+    const d = f && f.criado_em ? new Date(f.criado_em) : null;
+    if (d && !isNaN(d)) datas.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    return datas.length ? datas.reduce((a, b) => (a < b ? a : b)) : '';
+  }
+
+  // Números de uma pessoa no período (dias: 30, 90 ou 0 = tudo). "ocorrencias" = lançamentos dela; diasBase = diasComMovimento
+  function kpisDaPessoa(ocorrencias, diasBase, hoje, dias) {
+    const p = periodoDe(hoje, dias);
+    const lista = (ocorrencias || []).filter(l => dentroDe(l.data, p))
+      .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : String(b.criado_em || '').localeCompare(String(a.criado_em || ''))));
+    const aus = lista.filter(l => l.tipo === 'ausencia'), atr = lista.filter(l => l.tipo === 'atraso'), sai = lista.filter(l => l.tipo === 'saida');
+    const contam = lista.filter(contaNaAusencia);
+    const diasAusente = new Set(contam.map(l => l.data)).size;
+    const minutos = atr.map(l => minutosDeAtraso(l.hora_prevista, l.hora_chegada)).filter(m => m != null);
+    const taxaValida = diasBase >= MIN_DIAS_TAXA;
+    const ultima = contam[0] || null;
+    const motivos = new Map();
+    for (const l of lista) { const k = dobrar(l.motivo); const m = motivos.get(k) || { motivo: l.motivo, n: 0 }; m.n++; motivos.set(k, m); }
+    const semana = [0, 0, 0, 0, 0, 0, 0];
+    for (const l of contam) semana[diaDaSemanaIso(l.data)]++;
+    const topo = Math.max(...semana);
+    return {
+      de: p.de, diasBase, ausencias: aus.length, atrasos: atr.length, saidas: sai.length, diasAusente,
+      presentes: Math.max(0, diasBase - diasAusente),
+      taxa: taxaValida ? diasAusente / diasBase * 100 : null, taxaValida,
+      atrasoMinutos: minutos.reduce((s, m) => s + m, 0), atrasoMedia: minutos.length ? Math.round(minutos.reduce((s, m) => s + m, 0) / minutos.length) : null,
+      ultima, diasSemFaltar: ultima ? Math.max(0, diasEntre(ultima.data, hoje)) : null,
+      motivos: [...motivos.values()].sort((a, b) => b.n - a.n || dobrar(a.motivo).localeCompare(dobrar(b.motivo))).map(m => ({ motivo: m.motivo, n: m.n, pct: m.n / lista.length * 100 })),
+      semana, diaTopo: topo >= 2 ? { dia: semana.indexOf(topo), nome: NOMES_DIA[semana.indexOf(topo)], n: topo } : null,
+      historico: lista,
+    };
+  }
+
+  // O valor mais comum de um campo no time (para já vir preenchido ao cadastrar), ou o padrão
+  function valorMaisComum(funcs, campo, padrao) {
+    const n = new Map();
+    for (const f of funcs || []) { const v = limpaTexto(f[campo]); if (v) n.set(v, (n.get(v) || 0) + 1); }
+    let melhor = padrao || '', max = 0;
+    for (const [v, q] of n) if (q > max) { melhor = v; max = q; }
+    return melhor;
+  }
+
+  // Confere o colaborador novo antes de mandar ao banco. aviso = pergunta para confirmar (nome igual ao de alguém do time)
+  function validarNovoColaborador(d, funcs) {
+    const nome = limpaTexto(d && d.nome), cargo = limpaTexto(d && d.cargo), turno = limpaTexto(d && d.turno);
+    const matricula = String((d && d.matricula) || '').replace(/\D/g, '');
+    const ativos = (funcs || []).filter(f => f.ativo !== false);
+    const res = { erro: '', aviso: '', dados: { nome, matricula, cargo, turno } };
+    if (!nome) res.erro = 'Digite o nome do colaborador.';
+    else if (nome.length < 3 || !/\p{L}{2}/u.test(nome)) res.erro = 'Digite o nome completo do colaborador.';
+    else if (nome.length > MAX_NOME) res.erro = 'Nome longo demais (máximo ' + MAX_NOME + ' letras).';
+    else if (matricula.length > MAX_MATRICULA) res.erro = 'Matrícula longa demais (máximo ' + MAX_MATRICULA + ' números).';
+    else if (cargo.length > MAX_CARGO) res.erro = 'Cargo longo demais (máximo ' + MAX_CARGO + ' letras).';
+    else if (turno.length > MAX_TURNO) res.erro = 'Turno longo demais (máximo ' + MAX_TURNO + ' letras).';
+    else if (ativos.length >= MAX_COLABORADORES) res.erro = 'O time já tem ' + MAX_COLABORADORES + ' colaboradores, que é o limite.';
+    if (res.erro) return res;
+    const mesmaMat = matricula && ativos.find(f => f.matricula === matricula);
+    if (mesmaMat) { res.erro = 'A matrícula ' + matricula + ' já é de ' + mesmaMat.nome + '.'; return res; }
+    const mesmoNome = ativos.find(f => dobrar(f.nome) === dobrar(nome));
+    if (mesmoNome) res.aviso = 'Já existe ' + mesmoNome.nome + (mesmoNome.matricula ? ' (matrícula ' + mesmoNome.matricula + ')' : '') + ' neste time. Cadastrar outra pessoa com o mesmo nome?';
+    return res;
+  }
+
   const Lideres = {
+    MIN_DIAS_TAXA, MAX_NOME, MAX_CARGO, MAX_TURNO, MAX_MATRICULA, MAX_COLABORADORES, NOMES_DIA,
+    iniciais, lancamentosPorPessoa, situacaoNoDia, diasComMovimento, inicioDaPessoa, kpisDaPessoa, valorMaisComum, validarNovoColaborador,
     SENHA_MINIMA, senhaFraca, diasSemBackup, deveSairPorInatividade,
     DOMINIO, MOTIVOS_AUSENCIA, MOTIVOS_ATRASO, MOTIVOS_SAIDA, ATRASO_CONTA_COMO_AUSENTE, SAIDA_CONTA_COMO_AUSENTE,
     emailDoUsuario, hm, minutosDoDia, minutosDeAtraso, textoAtraso, atrasoPendente, chaveDaPessoa, excluirDaBusca,

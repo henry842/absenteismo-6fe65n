@@ -10,8 +10,11 @@
   let prazo = null; // hora limite de envio, igual para todos (ex.: "16:00")
 
   const DIAS = 90;  // quanto histórico o supervisor carrega de início (o resto vem sob demanda)
+  // Aba Equipe do líder: o que está aberto na tela e o histórico do time (últimos 90 dias) para os indicadores
+  function novoEquipe() { return { busca: '', filtro: 'todos', aberto: null, periodo: 30, cadastro: false, form: { nome: '', matricula: '', cargo: '', turno: '' }, ocupado: false, verTudo: false }; }
+  function novoHist() { return { lancs: [], envios: [], desde: null, tudo: false, carregado: false, carregando: false, tentou: false, falhou: false, offline: false }; }
   const est = { funcs: [], lancs: [], envios: [], lideres: [], ok: false, desde: null, credenciais: [], filtroEquipe: '', buscaEquipe: '', soProblemas: false, dataRec: null, editandoFunc: null, importacao: null, auditoria: null };
-  const lider = { dia: null, aba: 'ausencia', sel: { ausencia: null, atraso: null, saida: null }, manual: { ausencia: false, atraso: false, saida: false }, editando: null, modoEd: null, motivo: '', outro: '', horaChegou: '', funcs: [], lancs: [], envio: null, fila: [], offline: false, sessaoExpirada: false };
+  const lider = { dia: null, aba: 'ausencia', sel: { ausencia: null, atraso: null, saida: null }, manual: { ausencia: false, atraso: false, saida: false }, editando: null, modoEd: null, motivo: '', outro: '', horaChegou: '', funcs: [], lancs: [], envio: null, fila: [], offline: false, sessaoExpirada: false, equipe: novoEquipe(), hist: novoHist() };
 
   const esc = s => ctx.esc(s);
   const ic = (n, x) => ctx.ic(n, x);
@@ -73,7 +76,8 @@
     const c = lerJSON(chaveCache(uid), null);
     const ok = c && typeof c === 'object';
     return { perfil: ok && c.perfil && typeof c.perfil === 'object' ? c.perfil : null, funcs: ok && Array.isArray(c.funcs) ? c.funcs : [],
-      dias: ok && c.dias && typeof c.dias === 'object' ? c.dias : {}, prazo: ok && typeof c.prazo === 'string' ? c.prazo : null };
+      dias: ok && c.dias && typeof c.dias === 'object' ? c.dias : {}, prazo: ok && typeof c.prazo === 'string' ? c.prazo : null,
+      hist: ok && c.hist && typeof c.hist === 'object' && Array.isArray(c.hist.lancs) ? { desde: typeof c.hist.desde === 'string' ? c.hist.desde : '', tudo: !!c.hist.tudo, lancs: c.hist.lancs, envios: Array.isArray(c.hist.envios) ? c.hist.envios : [] } : null };
   }
   function mudarCache(uid, fn) {
     const c = lerCache(uid); fn(c);
@@ -117,7 +121,7 @@
     limparDadosLocais();
     perfil = null; prazo = null;
     Object.assign(est, { funcs: [], lancs: [], envios: [], lideres: [], ok: false, desde: null, credenciais: [], importacao: null, auditoria: null });
-    Object.assign(lider, { dia: null, aba: 'ausencia', sel: { ausencia: null, atraso: null, saida: null }, manual: { ausencia: false, atraso: false, saida: false }, editando: null, modoEd: null, motivo: '', outro: '', horaChegou: '', funcs: [], lancs: [], envio: null, fila: [], offline: false, sessaoExpirada: false });
+    Object.assign(lider, { dia: null, aba: 'ausencia', sel: { ausencia: null, atraso: null, saida: null }, manual: { ausencia: false, atraso: false, saida: false }, editando: null, modoEd: null, motivo: '', outro: '', horaChegou: '', funcs: [], lancs: [], envio: null, fila: [], offline: false, sessaoExpirada: false, equipe: novoEquipe(), hist: novoHist() });
   }
 
   // ---------- Texto para o superior editado: guardado aqui e sincronizado entre os aparelhos do supervisor ----------
@@ -251,7 +255,7 @@
         supa.from('envios').select('*').eq('data', dia).eq('time', perfil.time).maybeSingle(),
         supa.from('parametros').select('valor').eq('chave', 'hora_limite').maybeSingle(),
       ];
-      if (!lider.funcs.length) pedidos.push(supa.from('funcionarios').select('id,matricula,nome,cargo,ativo').eq('time', perfil.time).eq('ativo', true).order('nome').limit(1000));
+      if (!lider.funcs.length) pedidos.push(supa.from('funcionarios').select('id,matricula,nome,cargo,turno,ativo,criado_em').eq('time', perfil.time).eq('ativo', true).order('nome').limit(1000));
       const [l, e, p, f] = await Promise.all(pedidos);
       for (const r of [l, e, p, f]) if (r && r.error) throw r.error;
       lider.lancs = l.data; lider.envio = e.data; lider.offline = false;
@@ -324,10 +328,14 @@
     const pend = lider.lancs.filter(D.atrasoPendente).length; const ca = $('#liderContadorAtraso'); ca.textContent = pend; ca.hidden = !pend;
     atualizarStatusLider();
     const p = $('#liderPainel');
+    const ativo = document.activeElement, foco = ativo && /^eq-/.test(ativo.id || '') ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;   // quem digita na aba Equipe não perde o cursor
+    if (lider.aba === 'equipe') garantirHistorico();
     if (lider.aba === 'ausencia') p.innerHTML = htmlCompleto() + htmlAguardando() + htmlLancar('ausencia') + htmlJaLancados();
     else if (lider.aba === 'saida') p.innerHTML = htmlLancar('saida');
     else if (lider.aba === 'hoje') p.innerHTML = htmlHoje();
+    else if (lider.aba === 'equipe') p.innerHTML = htmlEquipeLider();
     else p.innerHTML = htmlAjustes();
+    if (foco) { const el = document.getElementById(foco.id); if (el) { el.focus(); try { el.setSelectionRange(foco.ini, foco.fim); } catch (x) { /* campo sem cursor */ } } }
     atualizarPresentes();
     if (lider.aba === 'ausencia') atualizarCamposMotivo();
   }
@@ -590,7 +598,7 @@
       <button class="botao" style="margin-top:.5rem" data-acao-lider="addMotivo">${ic('plus')}Adicionar motivo</button>
     </div>
     <div class="cartao"><div class="cartao-topo"><div class="ladrilho p">${ic('users')}</div><div><h3>Meu time</h3>
-      <p>${esc(perfil.time)} · ${lider.funcs.length} pessoas cadastradas${perfil.nome ? ' · ' + esc(perfil.nome) : ''}. Se faltar alguém ou algum dado estiver errado, avise o supervisor.</p></div></div></div>`;
+      <p>${esc(perfil.time)} · ${lider.funcs.length} pessoas cadastradas${perfil.nome ? ' · ' + esc(perfil.nome) : ''}. Veja todos e cadastre quem faltar na aba Equipe. Se algum dado estiver errado, avise o supervisor.</p></div></div></div>`;
   }
 
   // Motivos próprios (Ajustes)
@@ -630,6 +638,11 @@
     else if (e.target.id === 'lf-prev' || e.target.id === 'lf-cheg') atualizarMinutosAtraso();
     else if (e.target.id === 'lf-outro') atualizarCamposMotivo();
     else if (e.target.id === 'lf-efetivo') atualizarPresentes();
+    else if (e.target.id === 'eq-busca') { lider.equipe.busca = e.target.value; atualizarListaEquipe(); }
+    else if (e.target.id === 'eq-mat') { e.target.value = soDigitos(e.target.value); lider.equipe.form.matricula = e.target.value; }
+    else if (e.target.id === 'eq-nome') lider.equipe.form.nome = e.target.value;
+    else if (e.target.id === 'eq-cargo') lider.equipe.form.cargo = e.target.value;
+    else if (e.target.id === 'eq-turno') lider.equipe.form.turno = e.target.value;
   }
 
   function atualizarPresentes() {
@@ -647,6 +660,7 @@
     } else if (e.target.id === 'lf-prev' || e.target.id === 'lf-cheg') atualizarMinutosAtraso();
     else if (e.target.id === 'lf-motivo') atualizarCamposMotivo();
     else if (e.target.id === 'aj-padrao') mudarMotivoPadrao(e.target.value);
+    else if (e.target.id === 'eq-filtro') { lider.equipe.filtro = e.target.value; atualizarListaEquipe(); }
   }
 
   const horaAgora = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -668,6 +682,15 @@
     else if (acao === 'editar') { lider.editando = idItem; lider.modoEd = null; lider.horaChegou = horaAgora(); desenharLiderPainel(); }
     else if (acao === 'converter') { lider.editando = idItem; lider.modoEd = 'converter'; lider.horaChegou = horaAgora(); desenharLiderPainel(); }
     else if (acao === 'addMotivo') adicionarMotivo();
+    else if (acao === 'abrirPessoa') abrirPessoa(b.dataset.fid);
+    else if (acao === 'voltarEquipe') { lider.equipe.aberto = null; desenharLiderPainel(); window.scrollTo(0, 0); }
+    else if (acao === 'periodo') mudarPeriodo(+b.dataset.dias);
+    else if (acao === 'verTudoHist') { lider.equipe.verTudo = !lider.equipe.verTudo; desenharLiderPainel(); }
+    else if (acao === 'recarregarHist') { carregarHistorico(lider.equipe.periodo === 0, true); desenharLiderPainel(); }
+    else if (acao === 'abrirCadastro') abrirCadastro();
+    else if (acao === 'fecharCadastro') { lider.equipe.cadastro = false; desenharLiderPainel(); }
+    else if (acao === 'cadastrar') await cadastrarColaborador();
+    else if (acao === 'lancarDaPessoa') lancarDaPessoa(b.dataset.tipo);
     else if (acao === 'removerMotivo') removerMotivo(b.dataset.motivo);
     else if (acao === 'cancelarEd') { lider.editando = null; lider.modoEd = null; desenharLiderPainel(); }
     else if (acao === 'salvarEd') await salvarEdicao(idItem, b);
@@ -764,6 +787,266 @@
     if (!confirm('Desfazer o envio? O time volta a aparecer como pendente para os supervisores.')) return;
     const ok = await executar({ op: 'envdel', dia: lider.dia, dados: {} });
     avisoGuardado(ok, 'Envio desfeito.');
+  }
+
+  // =====================================================================
+  //  LÍDER · EQUIPE: todos os colaboradores do time, perfil com indicadores e cadastro de colaborador novo
+  // =====================================================================
+  // Só lê (lançamentos, envios e funcionários do próprio time) e cadastra gente nova: nada aqui apaga nem altera lançamentos.
+  const DIAS_HIST = 90;   // histórico carregado de início; "Tudo" busca o resto
+  const EM_DIA = ['no domingo', 'na segunda-feira', 'na terça-feira', 'na quarta-feira', 'na quinta-feira', 'na sexta-feira', 'no sábado'];
+  const ROTULO_TIPO = { ausencia: 'Ausência', atraso: 'Atraso', saida: 'Saída antecipada' };
+  const pctBR = n => (Math.round(n * 10) / 10).toFixed(1).replace('.', ',').replace(',0', '') + '%';
+  const diasTxt = n => (n === 1 ? '1 dia' : n + ' dias');
+  const dataCadastro = iso => { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (e) { return ''; } };
+  // O histórico do servidor com o dia aberto na tela trocado pelo que o líder vê agora (inclui o que ainda está na fila)
+  const lancsDoTime = () => lider.hist.lancs.filter(l => l.data !== lider.dia).concat(lider.lancs);
+  const enviosDoTime = () => lider.hist.envios.filter(e => e.data !== lider.dia).concat(lider.envio ? [lider.envio] : []);
+  // Escolheu "Tudo" mas só os últimos 90 dias estão carregados (carregando, ou sem internet): os números são dos 90 dias
+  const periodoEfetivo = () => (lider.equipe.periodo === 0 && !lider.hist.tudo ? DIAS_HIST : lider.equipe.periodo);
+  const desenharEquipeNaTela = () => { if (perfil && perfil.papel === 'lider' && lider.aba === 'equipe') desenharLiderPainel(); };
+  const garantirHistorico = () => { if (!lider.hist.tentou) carregarHistorico(false); };
+
+  async function carregarHistorico(tudo, forcar) {
+    const h = lider.hist;
+    if (h.carregando) return;
+    if (!forcar && h.carregado && (h.tudo || !tudo)) return;       // já tem o que precisa
+    h.carregando = true; h.falhou = false; h.tentou = true;
+    const desde = tudo ? '' : somarDias(ctx.hoje(), -(DIAS_HIST - 1));
+    try {
+      const [l, e] = await Promise.all([
+        paginar((a, b) => { let q = supa.from('lancamentos').select('id,data,tipo,matricula,nome,motivo,justificativa,hora_prevista,hora_chegada,hora_saida,criado_em').eq('time', perfil.time); if (desde) q = q.gte('data', desde); return q.order('data', { ascending: false }).order('id').range(a, b); }),
+        paginar((a, b) => { let q = supa.from('envios').select('data,efetivo,enviado_em').eq('time', perfil.time); if (desde) q = q.gte('data', desde); return q.order('data', { ascending: false }).range(a, b); }),
+      ]);
+      Object.assign(h, { lancs: l, envios: e, desde, tudo: !!tudo, carregado: true, offline: false });
+      mudarCache(perfil.user_id, c => { c.hist = l.length <= 3000 ? { desde, tudo: !!tudo, lancs: l, envios: e } : null; });
+    } catch (err) {
+      const semNet = D.erroDeRede(err, navigator.onLine), guardado = lerCache(perfil.user_id).hist;
+      if (!h.carregado && semNet && guardado) Object.assign(h, { lancs: guardado.lancs, envios: guardado.envios, desde: guardado.desde, tudo: !!guardado.tudo, carregado: true, offline: true });
+      else if (!h.carregado) h.falhou = true;
+      else ctx.aviso(semNet ? 'Sem internet: mostrando o histórico que já estava carregado.' : falha(err));
+    } finally { h.carregando = false; }
+    desenharEquipeNaTela();
+  }
+
+  // Cada colaborador com a situação no dia aberto e os números dos últimos 30 dias (quando o histórico já chegou)
+  function dadosDaLista() {
+    const h = lider.hist, hoje = ctx.hoje();
+    const doDia = D.lancamentosPorPessoa(lider.funcs, lider.lancs);
+    const todos = h.carregado ? lancsDoTime() : null;
+    const historico = todos ? D.lancamentosPorPessoa(lider.funcs, todos) : null;
+    const envios = todos ? enviosDoTime() : [];
+    const numeros = f => {
+      if (!historico) return null;
+      const dele = historico.get(f.id);
+      return D.kpisDaPessoa(dele, D.diasComMovimento(todos, envios, hoje, 30, D.inicioDaPessoa(f, dele)), hoje, 30);
+    };
+    return lider.funcs.slice().sort(ordemPorNome).map(f => ({ f, sit: D.situacaoNoDia(doDia.get(f.id)), k: numeros(f) }));
+  }
+
+  const chipSituacao = s => (s ? `<span class="chip ${s.tipo}">${esc(s.rotulo)}</span>` : '');
+
+  function linhasDaEquipe(itens) {
+    const e = lider.equipe;
+    let lista = itens;
+    if (e.busca.trim()) { const achados = new Set(D.buscarFuncionarios(lider.funcs, e.busca, { max: 1000 }).map(f => f.id)); lista = lista.filter(x => achados.has(x.f.id)); }
+    if (e.filtro === 'fora') lista = lista.filter(x => x.sit);
+    else if (e.filtro === 'ocorrencia') lista = lista.filter(x => x.k && x.k.diasAusente > 0);
+    else if (e.filtro === 'semmat') lista = lista.filter(x => !x.f.matricula);
+    if (!lista.length) return `<div class="vazio-lista">${lider.funcs.length ? 'Ninguém encontrado com esse filtro.' : 'Nenhum colaborador cadastrado ainda. Toque em Adicionar colaborador.'}</div>`;
+    return lista.map(({ f, sit, k }) => {
+      const partes = [];
+      if (k && k.ausencias) partes.push(k.ausencias + (k.ausencias === 1 ? ' ausência' : ' ausências'));
+      if (k && k.atrasos) partes.push(k.atrasos + (k.atrasos === 1 ? ' atraso' : ' atrasos'));
+      if (k && k.saidas) partes.push(k.saidas + (k.saidas === 1 ? ' saída' : ' saídas'));
+      const mini = partes.length ? `<span class="mini">${partes.join(' · ')} em 30 dias</span>` : '';
+      return `<button class="pessoa" type="button" data-acao-lider="abrirPessoa" data-fid="${esc(f.id)}">
+        <span class="avatar-p">${esc(D.iniciais(f.nome))}</span>
+        <span class="pessoa-txt"><b>${esc(f.nome)}</b><span>${esc([f.matricula || 'sem matrícula', f.cargo, f.turno].filter(Boolean).join(' · '))}</span>${mini}</span>
+        <span class="pessoa-fim">${chipSituacao(sit)}${ic('chevron')}</span></button>`;
+    }).join('');
+  }
+  function atualizarListaEquipe() { const el = $('#eq-lista'); if (el) el.innerHTML = linhasDaEquipe(dadosDaLista()); }
+
+  function htmlEquipeLider() {
+    const e = lider.equipe;
+    const aberta = e.aberto && lider.funcs.find(x => x.id === e.aberto);
+    if (aberta) return htmlPerfilPessoa(aberta);
+    e.aberto = null;
+    const hoje = ctx.hoje(), dia = D.resumoDoTime(lider.lancs, lider.envio), itens = dadosDaLista();
+    const comOcorrencia = lider.hist.carregado ? itens.filter(x => x.k && x.k.diasAusente > 0).length : '…';
+    const filtros = [['todos', 'Todos'], ['fora', lider.dia === hoje ? 'Ausentes ou atrasados hoje' : 'Ausentes ou atrasados no dia'], ['ocorrencia', 'Com ocorrência (30 dias)'], ['semmat', 'Sem matrícula']]
+      .map(([v, t]) => `<option value="${v}"${e.filtro === v ? ' selected' : ''}>${t}</option>`).join('');
+    return `
+      <div class="kpis kpis-equipe kpis-lider">
+        <div class="kpi"><div class="rot">Colaboradores</div><div class="valor">${lider.funcs.length}</div></div>
+        <div class="kpi"><div class="rot">Ausências e atrasos</div><div class="valor">${dia.conta}</div><div class="det">${lider.dia === hoje ? 'hoje' : esc(L.dataBR(lider.dia))}</div></div>
+        <div class="kpi"><div class="rot">Em atraso agora</div><div class="valor">${dia.pendentes.length}</div></div>
+        <div class="kpi"><div class="rot">Com ocorrência</div><div class="valor">${comOcorrencia}</div><div class="det">nos últimos 30 dias</div></div>
+      </div>
+      ${e.cadastro ? htmlCadastro() : ''}
+      <div class="cartao">
+        <div class="cartao-topo"><div class="ladrilho p">${ic('users')}</div><div><h3>Colaboradores do time</h3><p>Toque em uma pessoa para ver o perfil e os indicadores dela.</p></div><span class="espaco"></span>
+          ${e.cadastro ? '' : `<button class="botao" data-acao-lider="abrirCadastro">${ic('plus')}Adicionar colaborador</button>`}</div>
+        <div class="filtros-pessoas">
+          <div class="com-icone">${ic('search')}<input id="eq-busca" autocomplete="off" placeholder="Buscar por nome ou matrícula" value="${esc(e.busca)}" aria-label="Buscar colaborador"></div>
+          <select id="eq-filtro" aria-label="Filtrar colaboradores">${filtros}</select>
+        </div>
+        <div id="eq-lista">${linhasDaEquipe(itens)}</div>
+      </div>`;
+  }
+
+  function htmlCadastro() {
+    const e = lider.equipe, f = e.form;
+    const opcoes = campo => [...new Set(lider.funcs.map(x => String(x[campo] || '').trim()).filter(Boolean))].sort().map(v => `<option value="${esc(v)}"></option>`).join('');
+    const cargos = opcoes('cargo'), turnos = opcoes('turno');
+    return `<div class="cartao">
+      <div class="cartao-topo"><div class="ladrilho p verde">${ic('plus')}</div><div><h3>Adicionar colaborador</h3>
+        <p>A pessoa entra na lista do time ${esc(perfil.time)} na hora. Depois é só lançar ausência, atraso ou saída dela, como as outras.</p></div></div>
+      <div class="cadastro-campos">
+        <div class="largo"><label class="rotulo" for="eq-nome">Nome completo</label><input id="eq-nome" maxlength="${D.MAX_NOME}" autocomplete="off" value="${esc(f.nome)}"></div>
+        <div><label class="rotulo" for="eq-mat">Matrícula <span style="color:var(--fraco)">(se já tiver)</span></label><input id="eq-mat" inputmode="numeric" maxlength="${D.MAX_MATRICULA}" autocomplete="off" value="${esc(f.matricula)}"></div>
+        <div><label class="rotulo" for="eq-cargo">Cargo</label><input id="eq-cargo" list="eq-cargos" maxlength="${D.MAX_CARGO}" autocomplete="off" value="${esc(f.cargo)}"><datalist id="eq-cargos">${cargos}</datalist></div>
+        <div><label class="rotulo" for="eq-turno">Turno</label><input id="eq-turno" list="eq-turnos" maxlength="${D.MAX_TURNO}" autocomplete="off" value="${esc(f.turno)}"><datalist id="eq-turnos">${turnos}</datalist></div>
+      </div>
+      <div class="linha" style="margin-top:.75rem">
+        <button class="botao g" data-acao-lider="cadastrar"${e.ocupado ? ' disabled' : ''}>${ic('check')}${e.ocupado ? 'Cadastrando…' : 'Cadastrar colaborador'}</button>
+        <button class="botao neutro" data-acao-lider="fecharCadastro">Cancelar</button>
+      </div>
+    </div>`;
+  }
+
+  // Uma linha do histórico da pessoa
+  function itemHistorico(l) {
+    let detalhe = '';
+    if (l.tipo === 'atraso') {
+      const min = D.minutosDeAtraso(l.hora_prevista, l.hora_chegada);
+      detalhe = D.atrasoPendente(l) ? ` Em atraso (turno às ${esc(D.hm(l.hora_prevista))}).` : ` Chegou ${esc(D.hm(l.hora_chegada))}${min ? ' (' + esc(D.textoAtraso(min)) + ' de atraso)' : ''}.`;
+    } else if (l.tipo === 'saida') detalhe = ` Saiu ${esc(D.hm(l.hora_saida))}.`;
+    return `<div class="item-hist"><div class="dt"><b>${esc(L.dataBR(l.data))}</b><span>${esc(diaSemana(l.data))}</span></div>
+      <div class="txt"><span class="etiqueta${l.tipo === 'ausencia' ? ' vermelha' : l.tipo === 'saida' ? ' laranja' : ''}">${ROTULO_TIPO[l.tipo] || 'Registro'}</span> <span class="etiqueta neutra">${esc(l.motivo)}</span>${detalhe}
+        ${l.justificativa ? `<div class="just">${esc(l.justificativa)}</div>` : ''}</div></div>`;
+  }
+
+  // Os números do perfil (cartões, motivos, dias da semana, histórico) para o período escolhido
+  function htmlIndicadores(k, per) {
+    const h = lider.hist, e = lider.equipe;
+    const avisos = [];
+    if (h.offline) avisos.push(`<div class="caixa-aviso info">${ic('nuvemOff')}<span>Sem internet: mostrando o histórico guardado neste aparelho.</span></div>`);
+    if (e.periodo === 0 && !h.tudo) avisos.push(`<div class="caixa-aviso info">${ic('clock')}<span>${h.carregando ? 'Carregando todo o histórico…' : `Mostrando os últimos ${DIAS_HIST} dias.`}</span></div>`);
+    if (!k.taxaValida) avisos.push(`<div class="caixa-aviso info">${ic('info')}<span>O % de absenteísmo aparece com ${D.MIN_DIAS_TAXA} dias de registro desde que a pessoa entrou no sistema (por enquanto são ${k.diasBase}). Os números abaixo já valem.</span></div>`);
+    const semFaltar = k.diasSemFaltar == null ? ['—', 'nenhuma ausência ou atraso no período']
+      : k.diasSemFaltar === 0 ? ['0', `faltou ou atrasou em ${L.dataBR(k.ultima.data)}`] : [String(k.diasSemFaltar), `desde ${L.dataBR(k.ultima.data)}`];
+    const tiles = `<div class="kpis kpis-perfil kpis-lider">
+      <div class="kpi destaque"><div class="rot">Absenteísmo</div><div class="valor">${k.taxa == null ? '—' : pctBR(k.taxa)}</div><div class="det">${diasTxt(k.diasAusente)} com ausência ou atraso em ${diasTxt(k.diasBase)}</div></div>
+      <div class="kpi"><div class="rot">Ausências</div><div class="valor">${k.ausencias}</div><div class="det">${k.ausencias === 1 ? 'dia sem vir trabalhar' : 'dias sem vir trabalhar'}</div></div>
+      <div class="kpi"><div class="rot">Atrasos</div><div class="valor">${k.atrasos}</div><div class="det">${k.atrasoMedia != null ? 'média de ' + D.textoAtraso(k.atrasoMedia) : k.atrasos ? 'sem hora de chegada ainda' : 'nenhum no período'}</div></div>
+      <div class="kpi"><div class="rot">Saídas antecipadas</div><div class="valor">${k.saidas}</div><div class="det">não contam como falta</div></div>
+      <div class="kpi"><div class="rot">Dias sem faltar</div><div class="valor">${semFaltar[0]}</div><div class="det">${semFaltar[1]}</div></div>
+      <div class="kpi"><div class="rot">Dias presente</div><div class="valor">${k.presentes}</div><div class="det">de ${diasTxt(k.diasBase)} registrados</div></div>
+    </div>`;
+    const motivos = k.motivos.length ? `<div class="cartao"><div class="cartao-topo"><div><h3>Motivos</h3><p>O que mais aparece nos lançamentos dele(a).</p></div></div>
+      ${k.motivos.slice(0, 8).map(m => `<div class="motivo-linha"><span>${esc(m.motivo)}</span><b>${m.n}</b><div class="trilho"><div class="enche" style="width:${Math.max(4, Math.round(m.pct))}%"></div></div></div>`).join('')}</div>` : '';
+    const nomesDia = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const semana = k.diasAusente ? `<div class="cartao"><div class="cartao-topo"><div><h3>Dias da semana</h3>
+      <p>${k.diaTopo ? `Costuma faltar ou atrasar ${EM_DIA[k.diaTopo.dia]} (${k.diaTopo.n} vezes).` : 'Ainda não há um dia da semana que se repita.'}</p></div></div>
+      <div class="semana">${[1, 2, 3, 4, 5, 6, 0].map(d => `<div${k.diaTopo && k.diaTopo.dia === d ? ' class="topo"' : ''}><b>${k.semana[d]}</b>${nomesDia[d]}</div>`).join('')}</div></div>` : '';
+    const lista = e.verTudo ? k.historico : k.historico.slice(0, 15);
+    const historico = `<div class="cartao"><div class="cartao-topo"><div><h3>Histórico (${k.historico.length})</h3><p>Ausências, atrasos e saídas lançadas, da mais recente para a mais antiga.</p></div></div>
+      ${lista.length ? lista.map(itemHistorico).join('') : '<div class="vazio-lista">Nenhuma ausência, atraso ou saída neste período.</div>'}
+      ${k.historico.length > 15 ? `<button class="link" data-acao-lider="verTudoHist">${e.verTudo ? 'Mostrar só os 15 mais recentes' : `Ver todos os ${k.historico.length}`}</button>` : ''}</div>`;
+    return avisos.join('') + tiles + motivos + semana + historico;
+  }
+
+  function htmlPerfilPessoa(f) {
+    const e = lider.equipe, h = lider.hist, hoje = ctx.hoje(), per = periodoEfetivo();
+    const todos = lancsDoTime();
+    const dele = D.lancamentosPorPessoa([f], todos).get(f.id);
+    const k = D.kpisDaPessoa(dele, D.diasComMovimento(todos, enviosDoTime(), hoje, per, D.inicioDaPessoa(f, dele)), hoje, per);
+    const sit = D.situacaoNoDia(D.lancamentosPorPessoa([f], lider.lancs).get(f.id));
+    const entrada = D.hm(perfil.entrada_turno);
+    const segmentos = [[30, '30 dias'], [90, '90 dias'], [0, 'Tudo']].map(([d, t]) => `<button type="button" data-acao-lider="periodo" data-dias="${d}" aria-pressed="${e.periodo === d}">${t}</button>`).join('');
+    let indicadores;
+    if (h.carregando && !h.carregado) indicadores = `<div class="caixa-aviso info">${ic('clock')}<span>Carregando o histórico…</span></div>`;
+    else if (h.falhou && !h.carregado) indicadores = `<div class="caixa-aviso vermelho">${ic('alertCircle')}<span>Não foi possível carregar o histórico${navigator.onLine ? '' : ' (sem internet)'}.</span><button class="botao neutro p" data-acao-lider="recarregarHist">Tentar de novo</button></div>`;
+    else indicadores = htmlIndicadores(k, per);
+    return `
+      <button class="link voltar" data-acao-lider="voltarEquipe">${ic('chevron')}Voltar para a equipe</button>
+      <div class="cartao">
+        <div class="perfil-topo"><span class="avatar-p g">${esc(D.iniciais(f.nome))}</span>
+          <div><h3>${esc(f.nome)}</h3><div class="chips">${chipSituacao(sit) || '<span class="chip ok">Sem ocorrência</span>'}</div></div></div>
+        <dl class="dados">
+          <div><dt>Matrícula</dt><dd>${f.matricula ? esc(f.matricula) : 'não informada'}</dd></div>
+          <div><dt>Cargo</dt><dd>${esc(f.cargo || '—')}</dd></div>
+          <div><dt>Turno</dt><dd>${esc(f.turno || '—')}</dd></div>
+          <div><dt>Time</dt><dd>${esc(perfil.time)}</dd></div>
+          ${entrada ? `<div><dt>Entrada do turno</dt><dd>${esc(entrada)}</dd></div>` : ''}
+          <div><dt>No sistema desde</dt><dd>${esc(dataCadastro(f.criado_em) || '—')}</dd></div>
+          <div><dt>Situação</dt><dd>Ativo</dd></div>
+        </dl>
+        <div class="linha" style="margin-top:.75rem">
+          <button class="botao" data-acao-lider="lancarDaPessoa" data-tipo="ausencia">${ic('user')}Lançar ausência ou atraso</button>
+          <button class="botao sec" data-acao-lider="lancarDaPessoa" data-tipo="saida">${ic('sair')}Lançar saída antecipada</button>
+        </div>
+      </div>
+      <div class="linha entre"><h3 style="margin:0">Indicadores</h3><div class="segmentos" role="group" aria-label="Período">${segmentos}</div></div>
+      ${indicadores}`;
+  }
+
+  function abrirPessoa(fid) {
+    if (!lider.funcs.some(x => x.id === fid)) return;
+    lider.equipe.aberto = fid; lider.equipe.verTudo = false;
+    desenharLiderPainel(); window.scrollTo(0, 0);
+  }
+  function mudarPeriodo(dias) {
+    if (![30, 90, 0].includes(dias)) return;
+    lider.equipe.periodo = dias; lider.equipe.verTudo = false;
+    if (dias === 0) carregarHistorico(true);
+    desenharLiderPainel();
+  }
+  function lancarDaPessoa(tipo) {
+    const f = lider.funcs.find(x => x.id === lider.equipe.aberto);
+    if (!f || !TIPOS[tipo]) return;
+    if (D.excluirDaBusca(lider.lancs, tipo).has(D.chaveDaPessoa(f))) return ctx.aviso(`${f.nome.split(' ')[0]} já foi lançado(a) ${lider.dia === ctx.hoje() ? 'hoje' : 'nesse dia'}. Use a aba Hoje para editar.`);
+    lider.aba = tipo; lider.sel[tipo] = f; lider.manual[tipo] = false; lider.motivo = ''; lider.outro = ''; lider.editando = null;
+    desenharLiderPainel(); window.scrollTo(0, 0);
+  }
+
+  function abrirCadastro() {
+    const e = lider.equipe;
+    e.form = { nome: '', matricula: '', cargo: D.valorMaisComum(lider.funcs, 'cargo', 'Operador'), turno: D.valorMaisComum(lider.funcs, 'turno', '2° Turno') };
+    e.cadastro = true;
+    desenharLiderPainel();
+    const i = $('#eq-nome'); if (i) i.focus();
+  }
+
+  // Mensagem do banco ao cadastrar, em português simples
+  function falhaDoCadastro(err) {
+    const t = String((err && (err.message || err.details)) || '');
+    if (err && err.code === '23505') return /matr/i.test(t) ? t : 'Já existe um colaborador igual neste time.';
+    if (err && err.code === '54000') return t;
+    if ((err && err.code === '42501') || /row-level security|permission denied/i.test(t)) return 'O cadastro de colaborador pelo líder ainda não foi liberado no banco. Peça ao supervisor para ativar (é uma configuração única) e tente de novo.';
+    return falha(err);
+  }
+
+  async function cadastrarColaborador() {
+    const e = lider.equipe;
+    if (e.ocupado) return;
+    if (!navigator.onLine) return ctx.aviso('Sem internet: para cadastrar um colaborador é preciso estar conectado.');
+    const r = D.validarNovoColaborador(e.form, lider.funcs);
+    if (r.erro) return ctx.aviso(r.erro);
+    if (r.aviso && !confirm(r.aviso)) return;
+    e.ocupado = true; desenharLiderPainel();
+    try {
+      const { data, error } = await supa.from('funcionarios').insert({ nome: r.dados.nome, matricula: r.dados.matricula, cargo: r.dados.cargo, turno: r.dados.turno, time: perfil.time })
+        .select('id,matricula,nome,cargo,turno,ativo,criado_em').single();
+      if (error) throw error;
+      lider.funcs = lider.funcs.concat([data]).sort(ordemPorNome);
+      mudarCache(perfil.user_id, c => { c.funcs = lider.funcs; });
+      e.cadastro = false; e.form = { nome: '', matricula: '', cargo: '', turno: '' }; e.busca = ''; e.filtro = 'todos'; e.aberto = data.id;
+      ctx.aviso(`${data.nome.split(' ')[0]} cadastrado(a) no time.` + (lider.envio && lider.dia === ctx.hoje() ? ' Você já enviou hoje: para o total do time incluir essa pessoa, atualize o envio na aba Hoje.' : ''));
+    } catch (err) { ctx.aviso(falhaDoCadastro(err)); }
+    finally { e.ocupado = false; desenharLiderPainel(); window.scrollTo(0, 0); }
   }
 
   // =====================================================================
@@ -1233,7 +1516,9 @@
     $('#abas').addEventListener('click', e => {
       const b = e.target.closest('[data-aba-lider]');
       if (!b || !perfil || perfil.papel !== 'lider') return;
-      lider.aba = b.dataset.abaLider; lider.editando = null; desenharLiderPainel(); window.scrollTo(0, 0);
+      lider.aba = b.dataset.abaLider; lider.editando = null;
+      if (lider.aba === 'equipe') lider.equipe.aberto = null;   // tocar na aba volta para a lista
+      desenharLiderPainel(); window.scrollTo(0, 0);
     });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && perfil && perfil.papel === 'lider') recarregarLider(); });
     window.addEventListener('online', () => { if (perfil && perfil.papel === 'lider') { lider.sessaoExpirada = false; recarregarLider(); } });
