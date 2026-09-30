@@ -19,6 +19,8 @@
   function erroDaSenha(e) {
     const t = String((e && (e.code || e.message)) || e || '');
     if (/same_password|different from the old/i.test(t)) return 'Escolha uma senha diferente da atual.';
+    const exige = /at least (\d+) characters/i.exec(String((e && e.message) || ''));
+    if (exige) return `O servidor exige pelo menos ${exige[1]} caracteres. Use uma senha maior.`;
     if (/weak_password|password should be|weak/i.test(t)) return 'O sistema recusou essa senha por ser fraca. Escolha outra.';
     if (ehRede(e)) return 'Sem internet. Conecte-se e tente de novo.';
     return 'Não consegui trocar a senha. Tente de novo.';
@@ -31,7 +33,7 @@
       ? 'A senha que o supervisor gerou é provisória. Escolha uma só sua: só você vai saber qual é.'
       : 'Escolha uma senha nova, que só você saiba.';
     $('#lnkSenhaDepois').textContent = o.obrigatoria ? 'Sair desta conta' : 'Agora não';
-    $('#senhaDica').textContent = `Pelo menos ${D.SENHA_MINIMA} caracteres, misturando letras e números (ou uma frase longa).`;
+    $('#senhaDica').textContent = `Pelo menos ${D.SENHA_MINIMA} caracteres. Evite datas e sequências como 1234.`;
     $('#senhaNova').value = ''; $('#senhaNova2').value = '';
     mensagem($('#msgSenha'), '');
     $('#telaSenha').hidden = false;

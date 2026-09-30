@@ -481,18 +481,17 @@
   }
 
   // ---------- Senha, backup e inatividade ----------
-  const SENHA_MINIMA = 10;
-  // Motivo de a senha ser fraca, ou '' se serve. Serve para orientar a pessoa; a regra final é do servidor.
+  const SENHA_MINIMA = 4;
+  // Motivo de a senha ser fraca, ou '' se serve. Mínimo de 4 caracteres; só barra o que qualquer um adivinha.
+  // A regra final de tamanho é a do Supabase (Authentication > Minimum password length).
   function senhaFraca(senha, usuario) {
     const s = String(senha || '');
     if (s.length < SENHA_MINIMA) return `Use pelo menos ${SENHA_MINIMA} caracteres.`;
     if (s.length > 72) return 'Senha longa demais (máximo 72 caracteres).';
-    if (/^(.)\1+$/.test(s)) return 'Não use o mesmo caractere repetido.';
+    if (/^(.)\1+$/.test(s)) return 'Não use o mesmo caractere repetido (como 0000).';
     const b = dobrar(s), u = dobrar(usuario || '').replace(/@.*$/, '');
     if (u.length >= 2 && b.includes(u)) return 'A senha não pode conter o seu usuário.';
-    if (/^(0123456789|1234567890|123456789|password|senha1234|qwerty|abcdefg|absenteismo)/.test(b)) return 'Essa senha é fácil de adivinhar. Escolha outra.';
-    const classes = [/[a-zà-ú]/i, /\d/, /[^a-zà-ú\d]/i].filter(r => r.test(s)).length;
-    if (classes < 2 && s.length < 14) return 'Misture letras e números (ou use uma frase de 14 letras ou mais).';
+    if (/^(0123|1234|2345|3456|4567|5678|6789|9876|8765|7654|6543|5432|4321|3210|abcd|qwer|senha|admin|teste|password|absenteismo)/.test(b)) return 'Essa senha é fácil de adivinhar (como 1234 ou senha). Escolha outra.';
     return '';
   }
   const diasSemBackup = (ultimoMs, agoraMs) => (Number.isFinite(ultimoMs) ? Math.max(0, Math.floor((agoraMs - ultimoMs) / 86400000)) : null);

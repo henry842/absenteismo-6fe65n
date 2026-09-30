@@ -10,7 +10,7 @@ No ar: site novo (Cloudflare e GitHub Pages), função de administração e migr
 
 ## O que ainda depende de você
 1. ✅ O SQL que remove a regra do segundo passo no banco já foi rodado e conferido.
-2. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **10**; validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
+2. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **4** (decisão do usuário em 30/09/2026; o padrão do Supabase é 6 e, se ele não aceitar menos que isso, o mínimo real é 6); validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
 3. ⚠️ **Backup:** o plano grátis do Supabase não faz cópia automática. Ou passar para o plano com backup diário, ou baixar o backup em Ajustes toda semana (o sistema avisa).
 4. ⚠️ **Item 99 (revisão humana):** peça a alguém de TI/segurança para ler `banco/estado-atual.sql` (regras de acesso) e decidir a política de dados de saúde (atestados): quem vê, por quanto tempo guarda. Isso é LGPD e não é decisão de programa.
 5. Avisar os líderes: no próximo acesso cada um vai criar a própria senha.
@@ -37,7 +37,7 @@ No ar: site novo (Cloudflare e GitHub Pages), função de administração e migr
 | 33, 34 | Token de recuperação reutilizável / eterno | ✅ | Do Supabase: uso único e com validade (conferir validade: item 4). |
 | 35 | Revelar se o e-mail existe | ✅ | Login errado: "Usuário ou senha errados". "Esqueci a senha": mesma resposta exista a conta ou não. |
 | 36 | Senha padrão para todos | ✅ | Cada líder recebe senha aleatória própria. |
-| 37 | Senha inicial vira permanente | ✅ | O líder é obrigado a criar a própria senha (mín. 10, sem o usuário, sem senhas óbvias) no próximo acesso online. Os 10 líderes já criados estão marcados. |
+| 37 | Senha inicial vira permanente | ✅ | O líder é obrigado a criar a própria senha (mín. 4 por decisão do usuário; recusa o usuário dentro da senha e as óbvias como 1234, 0000 e "senha") no próximo acesso online. Os 10 líderes já criados estão marcados. |
 | 38 | MFA | ⚠️ decisão sua | O segundo passo (código do celular) foi **retirado** a pedido do usuário em 30/09/2026. Supervisores entram só com a senha, e eles veem os dados de saúde de todos os times: por isso a senha forte, a saída automática após 30 min parado e o registro de alterações ficam ainda mais importantes. Dá para religar no futuro. |
 | 39, 40 | Papéis | ⚠️ | Hoje são dois: líder (só o time) e supervisor (tudo). Não existe papel "só leitura" para um chefe que apenas consulta. Se surgir essa necessidade, precisa criar. |
 | 41 | Acesso administrativo demais | ✅ | A chave de administração só existe dentro da função no servidor, que só um supervisor logado aciona. O site usa só a chave pública. |
