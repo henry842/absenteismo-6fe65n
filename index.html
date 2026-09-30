@@ -282,15 +282,6 @@
           <button class="botao neutro" id="btnLimparPrazo">Sem prazo</button>
         </div>
       </div>
-      <div class="cartao" id="cartaoMfa" hidden>
-        <div class="cartao-topo">
-          <div class="ladrilho p verde"><i data-i="shield"></i></div>
-          <div><h3>Verificação em dois passos</h3><p>Além da senha, o sistema pede um código do seu celular. É o que impede que alguém que descubra a sua senha veja os dados de saúde dos times. Se trocar de celular, adicione o novo antes de remover o antigo. Se perder o celular sem ter outro cadastrado, só o dono do projeto no Supabase consegue liberar o acesso.</p></div>
-        </div>
-        <div id="mfaLista" class="lista-mfa"></div>
-        <div class="linha"><button class="botao sec" id="btnMfaAdicionar" type="button"><i data-i="plus"></i>Adicionar outro celular</button></div>
-        <div class="contagem-car" id="mfaEquipe" style="text-align:left;margin-top:.625rem"></div>
-      </div>
       <div class="cartao">
         <div class="cartao-topo">
           <div class="ladrilho p"><i data-i="message"></i></div>
@@ -361,33 +352,6 @@
         <div class="links">
           <button type="button" class="link" id="lnkEsqueci">Esqueci a senha</button>
         </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- SEGUNDO PASSO (supervisor): cadastrar o celular ou digitar o código -->
-<div id="telaMfa" class="tela-cheia" hidden role="dialog" aria-modal="true" aria-labelledby="mfaTitulo">
-  <div class="login">
-    <div class="logo" aria-hidden="true"><i data-i="shield"></i></div>
-    <h1 id="mfaTitulo">Digite o código</h1>
-    <p class="sub" id="mfaSub"></p>
-    <div class="cartao">
-      <div id="mfaCadastro" hidden>
-        <ol class="passos-mfa">
-          <li>Instale no celular um aplicativo de códigos: Google Authenticator, Microsoft Authenticator ou Authy.</li>
-          <li>No aplicativo, adicione uma conta e aponte a câmera para o quadro abaixo.</li>
-          <li>Digite aqui o código de 6 números que o aplicativo mostrar.</li>
-        </ol>
-        <div class="qr"><img id="mfaQr" alt="Quadro para o aplicativo de códigos ler com a câmera" width="192" height="192" hidden><span id="mfaSemQr" class="suave" hidden>Não consegui desenhar o quadro. Use a chave abaixo.</span></div>
-        <details class="detalhe-imp"><summary>Não consigo ler o quadro</summary><p style="margin:.25rem 0">No aplicativo, escolha digitar uma chave e cole esta:</p><code id="mfaChave" class="chave-mfa"></code></details>
-        <div class="caixa-aviso amarelo"><i data-i="alert"></i><span>Guarde o celular. Se perder, e não tiver outro cadastrado, só o dono do projeto no Supabase consegue liberar o seu acesso.</span></div>
-      </div>
-      <form id="formMfa" autocomplete="off">
-        <div><label class="rotulo" for="mfaCodigo">Código de 6 números</label><input id="mfaCodigo" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="9" autocomplete="one-time-code" required></div>
-        <div class="caixa-aviso msg-login" id="msgMfa" role="alert"></div>
-        <button class="botao g" type="submit" id="btnMfa">Confirmar</button>
-        <div class="links"><button type="button" class="link" id="lnkMfaSair">Sair desta conta</button></div>
       </form>
     </div>
   </div>

@@ -501,7 +501,7 @@ details.time-cartao > .corpo { padding: 0 1.25rem 1.25rem; }
 .campos-add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: .625rem; margin-top: .625rem; }
 
 /* ---------- Entrar ---------- */
-#telaLogin, #telaMfa, #telaSenha { position: fixed; inset: 0; z-index: 80; background: var(--fundo); overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 1rem; }
+#telaLogin, #telaSenha { position: fixed; inset: 0; z-index: 80; background: var(--fundo); overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 1rem; }
 .login { width: 100%; max-width: 25rem; margin-block: auto; }   /* centraliza sem cortar o topo quando o conteúdo é mais alto que a tela */
 .login .logo { width: 4rem; height: 4rem; border-radius: 1rem; margin: 0 auto 1rem; }
 .login .logo svg.i { width: 2rem; height: 2rem; }
@@ -668,15 +668,7 @@ tr.linha-aguardando td { background: var(--amarelo-claro); }
 .detalhe-imp ul { margin: 0 0 .5rem; padding-left: 1.25rem; color: var(--suave); font-size: .875rem; }
 .detalhe-imp li { margin: .25rem 0; }
 
-/* ---------- Segundo passo e troca de senha ---------- */
-#telaMfa, #telaSenha { z-index: 85; }
-.suave { color: var(--suave); }
-.passos-mfa { margin: 0 0 .75rem; padding-left: 1.25rem; color: var(--suave); font-size: .9375rem; }
-.passos-mfa li { margin: .25rem 0; }
-.qr { display: grid; place-items: center; margin: .5rem 0 .75rem; min-height: 4rem; }
-.qr img { width: 12rem; height: 12rem; border-radius: .75rem; background: #fff; padding: .5rem; border: 1px solid var(--borda); image-rendering: pixelated; }
-.chave-mfa { display: block; font-family: var(--mono); font-size: 1rem; letter-spacing: .06em; padding: .5rem .625rem; margin: .25rem 0 .5rem; background: var(--campo); border-radius: .625rem; overflow-wrap: anywhere; user-select: all; }
-.lista-mfa { margin: .5rem 0 .75rem; display: grid; gap: .5rem; }
+/* ---------- Troca de senha ---------- */
+#telaSenha { z-index: 85; }
 .lista-motivos { list-style: none; margin: .5rem 0 1rem; padding: 0; display: grid; gap: .5rem; }
 .lista-motivos li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem .75rem; background: var(--campo); border-radius: .75rem; overflow-wrap: anywhere; }
-.linha-mfa { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; padding: .5rem .75rem; background: var(--campo); border-radius: .75rem; }

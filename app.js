@@ -55,7 +55,6 @@ if (window.top !== window.self) {
     chevron: '<path d="m6 9 6 6 6-6"/>',
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
     inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
-    shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
     key: '<path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
   };
   const ic = (n, extra) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"${extra ? ' ' + extra : ''}>${ICONES[n] || ''}</svg>`;
@@ -1054,9 +1053,6 @@ if (window.top !== window.self) {
     $('#cartaoPrazo').hidden = !(window.Painel && window.Painel.ehSupervisor());
     $('#prazoHora').value = (window.Painel && window.Painel.prazo) ? window.Painel.prazo.slice(0, 5) : '';
     $('#btnCsvLideres').hidden = !(window.Painel && window.Painel.ehSupervisor());
-    const ehSup = !!(window.Painel && window.Painel.ehSupervisor());
-    $('#cartaoMfa').hidden = !ehSup;
-    if (ehSup && sinc && sinc.supa) window.Acesso.desenharCartao(sinc.supa, contextoAcesso());
     const bk = textoBackup();
     $('#lembreteBackup').textContent = bk.texto; $('#lembreteBackup').style.color = bk.atrasado ? 'var(--vermelho)' : '';
     $('#cfgMeta').value = base.config.meta ? +(base.config.meta * 100).toFixed(2) : '';
@@ -1278,7 +1274,7 @@ if (window.top !== window.self) {
     else msgLogin('Se este e-mail tem acesso, enviamos um link para ele. Abra o link neste aparelho para criar uma senha nova.', 'ok');   // mesma resposta exista a conta ou não
   });
 
-  // O que o módulo de acesso (segundo passo, troca de senha) precisa da página
+  // O que o módulo de acesso (troca de senha) precisa da página
   const contextoAcesso = () => ({ aviso, sair: () => sairDaConta() });
 
   $('#formLogin').addEventListener('submit', async e => {
@@ -1296,8 +1292,6 @@ if (window.top !== window.self) {
         if (error) throw error;
         await entrar(data.user);
       } else {
-        // conta com celular cadastrado: confirma o código antes de trocar a senha
-        if (!(await window.Acesso.elevar(sinc.supa, contextoAcesso()))) return;
         const { data, error } = await sinc.supa.auth.updateUser({ password: senha, data: { trocar_senha: false } });
         if (error) throw error;
         aviso('Senha trocada.');
@@ -1326,15 +1320,8 @@ if (window.top !== window.self) {
       mostrarLogin('entrar'); msgLogin('Esta conta não tem acesso ao sistema. Fale com o supervisor.');
       return;
     }
-    // Supervisor vê os dados de saúde de todos os times: além da senha, confirma o código do celular
-    if (perfil && perfil.papel === 'supervisor') {
-      travarApp(true);
-      const passo = await window.Acesso.garantir(sinc.supa, contextoAcesso());
-      travarApp(false);
-      if (passo === 'saiu') return;
-      if (passo !== true) { mostrarLogin('entrar'); msgLogin('Não consegui confirmar o segundo passo. Verifique a internet e entre de novo.'); return; }
-      iniciarInatividade();
-    }
+    // Supervisor que fica parado sai sozinho (mais abaixo)
+    if (perfil && perfil.papel === 'supervisor') iniciarInatividade();
     liberarTela();
     const email = usuario.email || '';
     const nomeCurto = perfil ? (perfil.papel === 'lider' ? perfil.time : (perfil.nome || perfil.usuario)) : email.split('@')[0];
@@ -1426,7 +1413,6 @@ if (window.top !== window.self) {
     let u = null;
     try { const { data } = await sinc.supa.auth.getSession(); u = data && data.session && data.session.user; } catch (e) { /* segue sem o nome */ }
     if (!u) return aviso('Entre de novo para trocar a senha.');
-    if (!(await window.Acesso.elevar(sinc.supa, contextoAcesso()))) return;
     travarApp(true);
     await window.Acesso.trocarSenha(sinc.supa, { obrigatoria: false, usuario: (u.email || '').split('@')[0], contexto: contextoAcesso() });
     travarApp(false);

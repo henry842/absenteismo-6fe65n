@@ -5,10 +5,11 @@
 Legenda: ✅ resolvido e verificado · ⏳ falta uma ação sua · ⚠️ limite real ou decisão sua · ➖ não se aplica a este sistema
 
 ## Situação em 30/09/2026
-Tudo no ar: site novo (Cloudflare e GitHub Pages), função de administração versão 6, código no GitHub e **migração do banco aplicada** (conferida depois: regra nova do supervisor, bloqueio nos logins de líder, os 10 líderes marcados para criar a própria senha, nada sobrando do teste, dados intactos).
+No ar: site novo (Cloudflare e GitHub Pages), função de administração e migração de segurança do banco (bloqueio de e-mail nos logins de líder, sessões, senha própria do líder).
+**Decisão do usuário (30/09/2026): o segundo passo dos supervisores (código do celular) foi retirado.** O site e a função de administração já não usam; falta só desfazer a regra no banco (abaixo).
 
 ## O que ainda depende de você
-1. ⏳ **Os dois supervisores ativarem o segundo passo** no próximo acesso (aplicativo de códigos no celular: Google Authenticator, Microsoft Authenticator ou Authy). O banco só passa a exigir o código de quem já ativou; até lá a senha sozinha ainda entra. Confira em Ajustes > Verificação em dois passos quem já ativou.
+1. ⏳ **Rodar no Supabase o SQL `banco/migracoes/20260930b_remover_segundo_passo.sql`** (SQL Editor > colar > Run; tem teste embutido). Ninguém ativou o segundo passo, então nada muda na prática, mas é preciso desfazer: com a regra ainda no banco, quem descobrisse a senha de um supervisor poderia cadastrar o próprio celular e trancar o supervisor para fora. Se quiser, em Authentication > Multi-Factor do Supabase, desligue também o cadastro de celular.
 2. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **10**; validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
 3. ⚠️ **Backup:** o plano grátis do Supabase não faz cópia automática. Ou passar para o plano com backup diário, ou baixar o backup em Ajustes toda semana (o sistema avisa).
 4. ⚠️ **Item 99 (revisão humana):** peça a alguém de TI/segurança para ler `banco/estado-atual.sql` (regras de acesso) e decidir a política de dados de saúde (atestados): quem vê, por quanto tempo guarda. Isso é LGPD e não é decisão de programa.
@@ -31,15 +32,15 @@ Tudo no ar: site novo (Cloudflare e GitHub Pages), função de administração v
 | 25 | Sessão viva depois do logout | ✅ | Sair encerra a sessão. Ao **redefinir a senha ou desativar** um líder, as sessões abertas dele são derrubadas. Desativar já corta o acesso no ato, pela regra do banco. |
 | 26 | Sessão que nunca expira | ✅/⚠️ | **Supervisor** sai sozinho após 30 min parado (sem perder nada pendente). **Líder** mantém a sessão (precisa para trabalhar sem internet); se perder o celular, o supervisor desativa o login e o acesso acaba na hora. Limite total de tempo de sessão é recurso pago do Supabase. |
 | 27, 28, 29 | Cookies | ➖/⚠️ | Sem cookies. O token fica no armazenamento do navegador (jeito do Supabase): quem consegue rodar script na página o lê. Por isso a defesa é o XSS bloqueado + CSP estrita (itens 12 e 54). |
-| 30, 31 | Limite de tentativas / força bruta | ⚠️ | Login: limites padrão do Supabase Auth (não confirmei o valor no seu projeto). Senhas de líder têm 12 caracteres aleatórios; supervisor terá o código do celular. Escrita no banco tem tetos (500 lançamentos/time/dia etc.). **Não há captcha**: se quiser, dá para ligar o Turnstile da Cloudflare no login. |
+| 30, 31 | Limite de tentativas / força bruta | ⚠️ | Login: limites padrão do Supabase Auth (não confirmei o valor no seu projeto). Senhas de líder têm 12 caracteres aleatórios e cada líder passa a ter a própria. O supervisor entra só com a senha (peça que use uma senha forte e só sua). Escrita no banco tem tetos (500 lançamentos/time/dia etc.). **Não há captcha**: se quiser, dá para ligar o Turnstile da Cloudflare no login. |
 | 32 | Recuperação de senha insegura | ✅ (era grave) | Os logins de líder usam e-mail **inventado** num domínio que **ninguém registrou** (`absenteismo.app`). Qualquer pessoa poderia registrar o domínio, pedir "esqueci a senha" pela API pública e tomar a conta do líder. Agora o banco bloqueia todo envio de e-mail e toda troca de e-mail para esses logins (teste embutido na migração passou). Há duas barreiras: o Supabase já recusava endereço de domínio sem servidor de e-mail, e o banco passa a recusar mesmo que alguém registre o domínio e configure e-mail. |
 | 33, 34 | Token de recuperação reutilizável / eterno | ✅ | Do Supabase: uso único e com validade (conferir validade: item 4). |
 | 35 | Revelar se o e-mail existe | ✅ | Login errado: "Usuário ou senha errados". "Esqueci a senha": mesma resposta exista a conta ou não. |
 | 36 | Senha padrão para todos | ✅ | Cada líder recebe senha aleatória própria. |
 | 37 | Senha inicial vira permanente | ✅ | O líder é obrigado a criar a própria senha (mín. 10, sem o usuário, sem senhas óbvias) no próximo acesso online. Os 10 líderes já criados estão marcados. |
-| 38 | MFA | ✅/⏳ | Supervisores: código do celular (app autenticador). O banco já **exige** o código de quem ativou; falta os dois supervisores ativarem (item 1 acima). Líderes: sem MFA (não têm e-mail/celular próprio no sistema; decisão de uso). |
+| 38 | MFA | ⚠️ decisão sua | O segundo passo (código do celular) foi **retirado** a pedido do usuário em 30/09/2026. Supervisores entram só com a senha, e eles veem os dados de saúde de todos os times: por isso a senha forte, a saída automática após 30 min parado e o registro de alterações ficam ainda mais importantes. Dá para religar no futuro. |
 | 39, 40 | Papéis | ⚠️ | Hoje são dois: líder (só o time) e supervisor (tudo). Não existe papel "só leitura" para um chefe que apenas consulta. Se surgir essa necessidade, precisa criar. |
-| 41 | Acesso administrativo demais | ✅ | A chave de administração só existe dentro da função no servidor, que só um supervisor logado aciona (e, com celular cadastrado, com o código confirmado). O site usa só a chave pública. |
+| 41 | Acesso administrativo demais | ✅ | A chave de administração só existe dentro da função no servidor, que só um supervisor logado aciona. O site usa só a chave pública. |
 | 42, 43, 44, 45, 46 | Banco exposto / RLS | ✅ | RLS ligado nas 9 tabelas; nenhuma regra aberta a `anon`/`public` (a tabela de convites nega tudo). Regras testadas com ataques (líder de outro time, virar supervisor, falsificar autor, datas fora da janela). Firebase: ➖. |
 | 47, 48 | CORS | ✅ | A função de administração só aceita 4 origens conhecidas. CORS não é usado como proteção: quem protege é o login + RLS. |
 | 49, 50 | Campos que o usuário não deveria mandar | ✅ | Autor e time são amarrados ao login no banco; o papel só muda por função de administração. Ninguém manda "role". |
@@ -72,4 +73,4 @@ Tudo no ar: site novo (Cloudflare e GitHub Pages), função de administração v
 Os commits locais antigos foram reunidos num só antes do envio, sem os dados reais. O nome do item 98 **não foi enviado** ao GitHub; ele só existe no registro interno do Git deste computador, que não é publicado.
 
 ## Como conferir
-`node --test testes/*.test.js` (120 testes, incluindo os de segurança do site). Segundo passo e troca de senha foram testados no navegador com um Supabase simulado; a ativação real precisa de um supervisor ativando de verdade.
+`node --test testes/*.test.js` (121 testes, incluindo os de segurança do site). A troca de senha e a saída por inatividade foram testadas no navegador com um Supabase simulado.

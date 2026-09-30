@@ -97,7 +97,7 @@ test('o Excel/backup que entra passa pela limpeza e por limites de tamanho', () 
   assert.match(app, /base = completar\(b\)/);
 });
 
-test('a tela de acesso (segundo passo e senha) nunca monta HTML com dados vindos do servidor', () => {
+test('a tela de acesso (troca de senha) nunca monta HTML com dados vindos do servidor', () => {
   const a = ler('acesso.js').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(a, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
   assert.match(a, /textContent/);
@@ -111,10 +111,8 @@ test('não existe criação de conta pelo site e o texto técnico do servidor n�
   assert.match(app, /function traduzirErro[\s\S]{0,1400}Não foi possível concluir/);
 });
 
-test('o supervisor só entra depois do segundo passo e sai sozinho por inatividade', () => {
+test('o supervisor sai sozinho por inatividade e o líder cria a própria senha', () => {
   const app = ler('app.js');
-  assert.match(app, /papel === 'supervisor'\) \{\s*travarApp\(true\);\s*const passo = await window\.Acesso\.garantir/);
-  assert.match(app, /passo !== true\) \{ mostrarLogin/);
   assert.match(app, /deveSairPorInatividade/);
   assert.match(app, /trocar_senha === true/);
 });

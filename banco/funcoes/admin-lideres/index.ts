@@ -1,8 +1,8 @@
-// Gerencia os logins dos líderes. Só supervisor ativo (e, se tiver celular cadastrado, com o código confirmado) pode chamar.
+// Gerencia os logins dos líderes. Só supervisor ativo pode chamar.
 // Ações: criar, redefinir (nova senha), desativar, reativar.
 // Cada ação fica na auditoria com o supervisor que fez (a senha nunca vai para a auditoria nem para o log).
-// Versão 6: exige o código do segundo passo de quem tem celular cadastrado, marca a senha gerada como provisória,
-// derruba as sessões abertas ao redefinir/desativar e fixa a versão da biblioteca.
+// Versão 7: marca a senha gerada como provisória, derruba as sessões abertas ao redefinir/desativar e fixa a versão da biblioteca.
+// (A versão 6 exigia o código do segundo passo; o segundo passo foi retirado do sistema.)
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4';   // versão fixa: nada muda sozinho
 
 // Só o site do sistema (e o teste local) pode chamar esta função pelo navegador.
@@ -41,14 +41,6 @@ function gerarSenha(): string {
   return saida;
 }
 
-// Nível da sessão (aal1 = só senha, aal2 = senha + código). Só é lido depois de o Supabase ter validado o token.
-function nivelDoToken(token: string): string {
-  try {
-    const parte = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return String(JSON.parse(atob(parte)).aal || 'aal1');
-  } catch { return 'aal1'; }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
   if (req.method !== 'POST') return resp(req, { erro: 'Método inválido' }, 405);
@@ -62,10 +54,6 @@ Deno.serve(async (req) => {
   if (eu || !u?.user) return resp(req, { erro: 'Não autenticado' }, 401);
   const { data: quem } = await admin.from('perfis').select('papel,ativo,usuario').eq('user_id', u.user.id).maybeSingle();
   if (!quem || quem.papel !== 'supervisor' || !quem.ativo) return resp(req, { erro: 'Só supervisor pode fazer isso' }, 403);
-  // Supervisor com celular cadastrado precisa ter confirmado o código nesta sessão
-  const temSegundoPasso = (u.user.factors || []).some((f: { status?: string }) => f.status === 'verified');
-  if (temSegundoPasso && nivelDoToken(token) !== 'aal2') return resp(req, { erro: 'Confirme o código do segundo passo.' }, 403);
-
   // Trilha de auditoria: quem (supervisor), o quê, em qual login. Nunca a senha.
   const supervisorId = u.user.id, supervisor = quem.usuario;
   const auditar = async (acao: 'INSERT' | 'UPDATE', operacao: string, alvo: string, time: string | null) => {

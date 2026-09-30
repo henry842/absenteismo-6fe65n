@@ -480,7 +480,7 @@
     return res;
   }
 
-  // ---------- Senha, segundo passo (supervisor) e inatividade ----------
+  // ---------- Senha, backup e inatividade ----------
   const SENHA_MINIMA = 10;
   // Motivo de a senha ser fraca, ou '' se serve. Serve para orientar a pessoa; a regra final é do servidor.
   function senhaFraca(senha, usuario) {
@@ -495,31 +495,11 @@
     if (classes < 2 && s.length < 14) return 'Misture letras e números (ou use uma frase de 14 letras ou mais).';
     return '';
   }
-  // O que fazer logo depois de entrar. Só o supervisor tem segundo passo.
-  function decidirSegundoPasso(papel, fatoresVerificados, nivelAtual) {
-    if (papel !== 'supervisor') return 'ok';
-    if (!fatoresVerificados) return 'cadastrar';
-    return nivelAtual === 'aal2' ? 'ok' : 'codigo';
-  }
-  const limparCodigo = t => String(t == null ? '' : t).replace(/\D/g, '');
-  const codigoValido = t => /^\d{6}$/.test(limparCodigo(t));
-  // O QR chega do Supabase como SVG; vira uma imagem (num <img> o SVG não executa nada). Recusa o que não parecer um desenho simples.
-  function imagemDoQr(qr) {
-    let s = String(qr || '').replace(/^data:image\/svg\+xml;(?:charset=)?utf-8,/i, '');
-    try { s = decodeURIComponent(s); } catch (e) { /* já veio sem codificação */ }
-    if (!/^\s*<svg[\s>]/i.test(s) || s.length > 30000 || /<script|<foreignObject|\son[a-z]+\s*=|javascript:|<!ENTITY/i.test(s)) return '';
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
-  }
-  // Chave para digitar no aplicativo, em grupos de 4 (só letras A-Z e números 2-7, o alfabeto base32)
-  function formatarChave(segredo) {
-    const s = String(segredo || '').replace(/\s+/g, '').toUpperCase();
-    return /^[A-Z2-7]{8,128}$/.test(s) ? s.replace(/(.{4})(?=.)/g, '$1 ') : '';
-  }
   const diasSemBackup = (ultimoMs, agoraMs) => (Number.isFinite(ultimoMs) ? Math.max(0, Math.floor((agoraMs - ultimoMs) / 86400000)) : null);
   const deveSairPorInatividade = (ultimaAtividadeMs, agoraMs, limiteMin) => agoraMs - ultimaAtividadeMs >= limiteMin * 60000;
 
   const Lideres = {
-    SENHA_MINIMA, senhaFraca, decidirSegundoPasso, limparCodigo, codigoValido, imagemDoQr, formatarChave, diasSemBackup, deveSairPorInatividade,
+    SENHA_MINIMA, senhaFraca, diasSemBackup, deveSairPorInatividade,
     DOMINIO, MOTIVOS_AUSENCIA, MOTIVOS_ATRASO, MOTIVOS_SAIDA, ATRASO_CONTA_COMO_AUSENTE, SAIDA_CONTA_COMO_AUSENTE,
     emailDoUsuario, hm, minutosDoDia, minutosDeAtraso, textoAtraso, atrasoPendente, chaveDaPessoa, excluirDaBusca,
     buscarFuncionarios, problemasCadastro, resumoDoTime, descricaoDaPessoa, lancamentosParaFechamentos, mesclarBase,
