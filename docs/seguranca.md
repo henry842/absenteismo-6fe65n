@@ -6,10 +6,10 @@ Legenda: ✅ resolvido e verificado · ⏳ falta uma ação sua · ⚠️ limite
 
 ## Situação em 30/09/2026
 No ar: site novo (Cloudflare e GitHub Pages), função de administração e migração de segurança do banco (bloqueio de e-mail nos logins de líder, sessões, senha própria do líder).
-**Decisão do usuário (30/09/2026): o segundo passo dos supervisores (código do celular) foi retirado.** O site e a função de administração já não usam; falta só desfazer a regra no banco (abaixo).
+**Decisão do usuário (30/09/2026): o segundo passo dos supervisores (código do celular) foi retirado.** O site e a função de administração já não usam; a regra do banco também já foi desfeita.
 
 ## O que ainda depende de você
-1. ⏳ **Rodar no Supabase o SQL `banco/migracoes/20260930b_remover_segundo_passo.sql`** (SQL Editor > colar > Run; tem teste embutido). Ninguém ativou o segundo passo, então nada muda na prática, mas é preciso desfazer: com a regra ainda no banco, quem descobrisse a senha de um supervisor poderia cadastrar o próprio celular e trancar o supervisor para fora. Se quiser, em Authentication > Multi-Factor do Supabase, desligue também o cadastro de celular.
+1. ✅ O SQL que remove a regra do segundo passo no banco já foi rodado e conferido.
 2. ⚠️ No painel do Supabase (Authentication): tamanho mínimo de senha **10**; validade do código/link de recuperação **até 1 hora**; conferir a validade do token de acesso (padrão 1 hora).
 3. ⚠️ **Backup:** o plano grátis do Supabase não faz cópia automática. Ou passar para o plano com backup diário, ou baixar o backup em Ajustes toda semana (o sistema avisa).
 4. ⚠️ **Item 99 (revisão humana):** peça a alguém de TI/segurança para ler `banco/estado-atual.sql` (regras de acesso) e decidir a política de dados de saúde (atestados): quem vê, por quanto tempo guarda. Isso é LGPD e não é decisão de programa.

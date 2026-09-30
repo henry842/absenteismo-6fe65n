@@ -1,6 +1,6 @@
 -- Migração: remove o segundo passo dos supervisores (a pedido do usuário, 30/09/2026).
--- STATUS: preparada, AINDA NÃO aplicada (o ambiente bloqueia mudanças no banco de produção). Aplicar pelo SQL Editor.
--- Como aplicar: Supabase > SQL Editor > cole este arquivo inteiro > Run.
+-- STATUS: APLICADA no banco de produção em 30/09/2026, pelo SQL Editor (o ambiente bloqueia mudanças no banco de produção feitas por mim).
+-- Conferida depois: regra simples de volta, consulta antiga removida, nenhum cadastro de celular sobrando, bloqueio de e-mail dos líderes e demais itens intactos.
 -- Ninguém tinha ativado o segundo passo, então o efeito prático é nenhum: a regra volta a ser a simples. Mas é importante
 -- desfazer: enquanto a regra nova existe, quem descobrisse a senha de um supervisor poderia cadastrar o PRÓPRIO celular e,
 -- sem a tela do código no site, trancar o supervisor de verdade para fora.

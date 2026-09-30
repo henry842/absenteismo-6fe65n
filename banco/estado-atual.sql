@@ -1,5 +1,5 @@
--- RETRATO do banco (schema public + gatilhos em auth.users) em 30/09/2026, DEPOIS da migração
--- banco/migracoes/20260930_mfa_e_login_sem_email.sql. Serve para conferir e para reconstruir o banco.
+-- RETRATO do banco (schema public + gatilhos em auth.users) em 30/09/2026, DEPOIS das migrações
+-- banco/migracoes/20260930_mfa_e_login_sem_email.sql e 20260930b_remover_segundo_passo.sql (o segundo passo foi retirado). Serve para conferir e para reconstruir o banco.
 -- Não é para rodar de uma vez: a ordem das linhas é a de leitura (tabelas, regras de acesso, restrições, índices, políticas, funções, gatilhos).
 -- Quando aplicar uma migração nova, gere este retrato de novo e substitua o arquivo.
 
@@ -158,24 +158,7 @@ CREATE OR REPLACE FUNCTION public.papel_atual()
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO ''
-AS $function$
-  select p.papel from public.perfis p
-  where p.user_id = auth.uid() and p.ativo
-    and (p.papel <> 'supervisor'
-         or coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
-         or not exists (select 1 from auth.mfa_factors f where f.user_id = p.user_id and f.status = 'verified'))
-$function$;
-CREATE OR REPLACE FUNCTION public.supervisores_sem_mfa()
- RETURNS TABLE(usuario text)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-  select p.usuario from public.perfis p
-  where public.papel_atual() = 'supervisor' and p.papel = 'supervisor' and p.ativo
-    and not exists (select 1 from auth.mfa_factors f where f.user_id = p.user_id and f.status = 'verified')
-  order by p.usuario
-$function$;
+AS $function$ select papel from public.perfis where user_id = auth.uid() and ativo $function$;
 CREATE OR REPLACE FUNCTION public.bloquear_email_de_login_interno()
  RETURNS trigger
  LANGUAGE plpgsql
