@@ -200,17 +200,35 @@ const fs = require('node:fs');
 const path = require('node:path');
 const RAIZ = path.join(__dirname, '..');
 
-test('aba Equipe (painel.js): as únicas escritas no banco são o cadastro de colaborador e a leitura do histórico', () => {
+test('aba Equipe (painel.js): as únicas escritas no banco são cadastrar colaborador e corrigir nome, cargo e turno', () => {
   const src = fs.readFileSync(path.join(RAIZ, 'painel.js'), 'utf8');
   const ini = src.indexOf('LÍDER · EQUIPE'), fim = src.indexOf('//  SUPERVISOR');
   assert.ok(ini > 0 && fim > ini, 'marcadores do bloco não achados');
   const bloco = src.slice(ini, fim);
-  assert.doesNotMatch(bloco, /\.(update|delete|upsert|rpc)\(/, 'o bloco da Equipe não pode alterar, apagar nem chamar funções do banco');
-  const escritas = bloco.match(/\.insert\(/g) || [];
-  assert.equal(escritas.length, 1, 'só um insert (o cadastro)');
+  assert.doesNotMatch(bloco, /\.(delete|upsert|rpc)\(/, 'o bloco da Equipe não pode apagar, fazer upsert nem chamar funções do banco');
+  assert.equal((bloco.match(/\.insert\(/g) || []).length, 1, 'só um insert (o cadastro)');
   assert.match(bloco, /supa\.from\('funcionarios'\)\.insert\(/);
+  const alteracoes = bloco.match(/\.update\(/g) || [];
+  assert.equal(alteracoes.length, 1, 'só um update (a correção)');
+  // a correção só manda nome, cargo e turno (matrícula, time e situação nunca saem daqui)
+  assert.match(bloco, /supa\.from\('funcionarios'\)\.update\(\{ nome: r\.dados\.nome, cargo: r\.dados\.cargo, turno: r\.dados\.turno \}\)\.eq\('id', f\.id\)/);
+  assert.doesNotMatch(bloco, /\.update\(\{[^}]*(matricula|time|ativo)[^}]*\}\)/, 'a correção não pode mandar matrícula, time nem ativo');
   assert.doesNotMatch(bloco, /from\('(lancamentos|envios)'\)\.(insert|update|delete|upsert)/);
   assert.match(bloco, /time: perfil\.time/, 'o cadastro vai sempre para o time do próprio líder');
+});
+
+test('migração da correção pelo líder: só UPDATE no próprio time e ativo, com trava que protege matrícula, time e situação', () => {
+  const sql = fs.readFileSync(path.join(RAIZ, 'banco/migracoes/20260930d_lider_corrige_colaborador.sql'), 'utf8');
+  const foraDoTeste = sql.slice(0, sql.indexOf('do $teste$'));
+  const politicas = foraDoTeste.match(/create policy [\s\S]*?;/gi) || [];
+  assert.equal(politicas.length, 1);
+  assert.match(politicas[0], /for update/i);
+  assert.match(politicas[0], /using \(public\.papel_atual\(\) = 'lider' and "time" = public\.time_atual\(\) and ativo\)/);
+  assert.match(politicas[0], /with check \(public\.papel_atual\(\) = 'lider' and "time" = public\.time_atual\(\) and ativo\)/);
+  assert.doesNotMatch(foraDoTeste, /for (insert|delete|all)\b/i);
+  for (const coluna of ['id', 'matricula', '"time"', 'ativo', 'criado_em']) assert.ok(foraDoTeste.includes(`new.${coluna} is distinct from old.${coluna}`), 'a trava deve proteger ' + coluna);
+  assert.doesNotMatch(foraDoTeste, /^\s*(delete|update|truncate|drop table|alter table)\b/im);
+  assert.match(sql, /raise exception 'FIM_DO_TESTE'/);
 });
 
 test('migração do cadastro pelo líder: só INSERT, no próprio time, pessoa ativa; sem regra de alterar ou apagar', () => {
@@ -226,4 +244,41 @@ test('migração do cadastro pelo líder: só INSERT, no próprio time, pessoa a
   assert.ok(foraDoTeste.length > 200);
   assert.doesNotMatch(foraDoTeste, /^\s*(delete|update|truncate|drop table|alter table)\b/im, 'a migração não mexe em dados nem em tabelas');
   assert.match(sql, /raise exception 'FIM_DO_TESTE'/, 'o teste embutido desfaz tudo no fim');
+});
+
+// ---- Correção de nome, cargo e turno pelo líder ----
+test('correção: nada mudou, ou mudou só maiúscula e acento, não pede cuidado', () => {
+  assert.equal(D.validarCorrecao({ nome: 'Ana Exemplo Prado', cargo: 'Operador', turno: '2° Turno' }, [ana, bia], ana).semMudanca, true);
+  const r = D.validarCorrecao({ nome: 'Bía modelo reis', cargo: 'Operador', turno: '2° Turno' }, [ana, bia], bia);
+  assert.equal(r.semMudanca, false);
+  assert.equal(r.quebraHistorico, false);          // a Bia não tem matrícula, mas o nome é o mesmo sem acento/maiúscula: o histórico continua ligado
+});
+
+test('correção: quem tem matrícula pode trocar o nome sem perder o histórico', () => {
+  const r = D.validarCorrecao({ nome: 'Ana Souza Prado', cargo: 'Operador', turno: '2° Turno' }, [ana, bia], ana);
+  assert.equal(r.erro, ''); assert.equal(r.quebraHistorico, false); assert.equal(r.semMudanca, false);
+  assert.deepEqual(r.dados, { nome: 'Ana Souza Prado', cargo: 'Operador', turno: '2° Turno' });
+});
+
+test('correção: quem NÃO tem matrícula e troca o nome de verdade perde a ligação com o histórico (avisar)', () => {
+  const r = D.validarCorrecao({ nome: 'Beatriz Modelo Reis', cargo: 'Operador', turno: '2° Turno' }, [ana, bia], bia);
+  assert.equal(r.erro, ''); assert.equal(r.quebraHistorico, true);
+  // mudar só cargo ou turno não mexe no histórico
+  assert.equal(D.validarCorrecao({ nome: 'Bia Modelo Reis', cargo: 'Líder', turno: '1° Turno' }, [ana, bia], bia).quebraHistorico, false);
+});
+
+test('correção: nome vazio ou curto é recusado; nome igual ao de outra pessoa pede confirmação; o próprio nome não conta', () => {
+  assert.match(D.validarCorrecao({ nome: '', cargo: 'X', turno: 'Y' }, [ana, bia], ana).erro, /nome/i);
+  assert.match(D.validarCorrecao({ nome: 'A', cargo: 'X', turno: 'Y' }, [ana, bia], ana).erro, /completo/);
+  const igual = D.validarCorrecao({ nome: 'Bia Modelo Reis', cargo: 'X', turno: 'Y' }, [ana, bia], ana);
+  assert.equal(igual.erro, ''); assert.match(igual.aviso, /Já existe Bia Modelo Reis/);
+  assert.equal(D.validarCorrecao({ nome: 'Ana Exemplo Prado', cargo: 'X', turno: 'Y' }, [ana, bia], ana).aviso, '');   // não compara com ela mesma
+});
+
+test('correção: limites de tamanho valem e a correção funciona mesmo com o time cheio', () => {
+  assert.match(D.validarCorrecao({ nome: 'Ana Exemplo', cargo: 'c'.repeat(61), turno: '' }, [ana], ana).erro, /Cargo/);
+  assert.match(D.validarCorrecao({ nome: 'Ana Exemplo', cargo: '', turno: 't'.repeat(31) }, [ana], ana).erro, /Turno/);
+  const cheio = Array.from({ length: D.MAX_COLABORADORES }, (_, i) => ({ id: 'x' + i, nome: 'Pessoa ' + i, matricula: String(1000000 + i), ativo: true }));
+  assert.equal(D.validarCorrecao({ nome: 'Pessoa Corrigida', cargo: 'Op', turno: 'T' }, cheio, cheio[0]).erro, '');   // o limite é para cadastrar, não para corrigir
+  assert.equal(D.validarCorrecao({ nome: 'Ana Exemplo', cargo: '', turno: '' }, [ana], ana).semMudanca, false);   // cargo e turno apagados contam como mudança
 });

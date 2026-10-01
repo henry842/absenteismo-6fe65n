@@ -621,8 +621,20 @@
     return res;
   }
 
+  // Confere a correção de nome, cargo e turno de alguém do time (matrícula, time e situação só o supervisor muda).
+  // semMudanca: nada foi alterado. quebraHistorico: a pessoa não tem matrícula e o nome mudou de verdade; como os lançamentos antigos
+  // ficam ligados ao nome que tinham, eles deixam de aparecer no perfil. Só trocar maiúscula ou acento não conta.
+  function validarCorrecao(d, funcs, f) {
+    const r = validarNovoColaborador({ nome: d && d.nome, cargo: d && d.cargo, turno: d && d.turno, matricula: '' }, (funcs || []).filter(x => x.id !== f.id));
+    const res = { erro: r.erro, aviso: r.aviso, dados: { nome: r.dados.nome, cargo: r.dados.cargo, turno: r.dados.turno }, semMudanca: false, quebraHistorico: false };
+    if (res.erro) return res;
+    res.semMudanca = res.dados.nome === limpaTexto(f.nome) && res.dados.cargo === limpaTexto(f.cargo) && res.dados.turno === limpaTexto(f.turno);
+    res.quebraHistorico = !f.matricula && dobrar(res.dados.nome) !== dobrar(f.nome);
+    return res;
+  }
+
   const Lideres = {
-    MIN_DIAS_TAXA, MAX_NOME, MAX_CARGO, MAX_TURNO, MAX_MATRICULA, MAX_COLABORADORES, NOMES_DIA,
+    validarCorrecao, MIN_DIAS_TAXA, MAX_NOME, MAX_CARGO, MAX_TURNO, MAX_MATRICULA, MAX_COLABORADORES, NOMES_DIA,
     iniciais, lancamentosPorPessoa, situacaoNoDia, diasComMovimento, inicioDaPessoa, kpisDaPessoa, valorMaisComum, validarNovoColaborador,
     SENHA_MINIMA, senhaFraca, diasSemBackup, deveSairPorInatividade,
     DOMINIO, MOTIVOS_AUSENCIA, MOTIVOS_ATRASO, MOTIVOS_SAIDA, ATRASO_CONTA_COMO_AUSENTE, SAIDA_CONTA_COMO_AUSENTE,

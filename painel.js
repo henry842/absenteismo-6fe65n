@@ -11,7 +11,7 @@
 
   const DIAS = 90;  // quanto histórico o supervisor carrega de início (o resto vem sob demanda)
   // Aba Equipe do líder: o que está aberto na tela e o histórico do time (últimos 90 dias) para os indicadores
-  function novoEquipe() { return { busca: '', filtro: 'todos', aberto: null, periodo: 30, cadastro: false, form: { nome: '', matricula: '', cargo: '', turno: '' }, ocupado: false, verTudo: false }; }
+  function novoEquipe() { return { busca: '', filtro: 'todos', aberto: null, periodo: 30, cadastro: false, form: { nome: '', matricula: '', cargo: '', turno: '' }, editando: null, formEd: { nome: '', cargo: '', turno: '' }, ocupado: false, verTudo: false }; }
   function novoHist() { return { lancs: [], envios: [], desde: null, tudo: false, carregado: false, carregando: false, tentou: false, falhou: false, offline: false }; }
   const est = { funcs: [], lancs: [], envios: [], lideres: [], ok: false, desde: null, credenciais: [], filtroEquipe: '', buscaEquipe: '', soProblemas: false, dataRec: null, editandoFunc: null, importacao: null, auditoria: null };
   const lider = { dia: null, aba: 'ausencia', sel: { ausencia: null, atraso: null, saida: null }, manual: { ausencia: false, atraso: false, saida: false }, editando: null, modoEd: null, motivo: '', outro: '', horaChegou: '', funcs: [], lancs: [], envio: null, fila: [], offline: false, sessaoExpirada: false, equipe: novoEquipe(), hist: novoHist() };
@@ -643,6 +643,9 @@
     else if (e.target.id === 'eq-nome') lider.equipe.form.nome = e.target.value;
     else if (e.target.id === 'eq-cargo') lider.equipe.form.cargo = e.target.value;
     else if (e.target.id === 'eq-turno') lider.equipe.form.turno = e.target.value;
+    else if (e.target.id === 'eq-ed-nome') lider.equipe.formEd.nome = e.target.value;
+    else if (e.target.id === 'eq-ed-cargo') lider.equipe.formEd.cargo = e.target.value;
+    else if (e.target.id === 'eq-ed-turno') lider.equipe.formEd.turno = e.target.value;
   }
 
   function atualizarPresentes() {
@@ -683,7 +686,10 @@
     else if (acao === 'converter') { lider.editando = idItem; lider.modoEd = 'converter'; lider.horaChegou = horaAgora(); desenharLiderPainel(); }
     else if (acao === 'addMotivo') adicionarMotivo();
     else if (acao === 'abrirPessoa') abrirPessoa(b.dataset.fid);
-    else if (acao === 'voltarEquipe') { lider.equipe.aberto = null; desenharLiderPainel(); window.scrollTo(0, 0); }
+    else if (acao === 'voltarEquipe') { lider.equipe.aberto = null; lider.equipe.editando = null; desenharLiderPainel(); window.scrollTo(0, 0); }
+    else if (acao === 'editarPessoa') abrirEdicao();
+    else if (acao === 'cancelarEdicaoPessoa') { lider.equipe.editando = null; desenharLiderPainel(); }
+    else if (acao === 'salvarPessoa') await salvarCorrecao();
     else if (acao === 'periodo') mudarPeriodo(+b.dataset.dias);
     else if (acao === 'verTudoHist') { lider.equipe.verTudo = !lider.equipe.verTudo; desenharLiderPainel(); }
     else if (acao === 'recarregarHist') { carregarHistorico(lider.equipe.periodo === 0, true); desenharLiderPainel(); }
@@ -896,10 +902,12 @@
       </div>`;
   }
 
+  // Sugestões (cargos e turnos que o time já usa) para os campos de cadastro e de correção
+  const opcoesDe = campo => [...new Set(lider.funcs.map(x => String(x[campo] || '').trim()).filter(Boolean))].sort().map(v => `<option value="${esc(v)}"></option>`).join('');
+
   function htmlCadastro() {
     const e = lider.equipe, f = e.form;
-    const opcoes = campo => [...new Set(lider.funcs.map(x => String(x[campo] || '').trim()).filter(Boolean))].sort().map(v => `<option value="${esc(v)}"></option>`).join('');
-    const cargos = opcoes('cargo'), turnos = opcoes('turno');
+    const cargos = opcoesDe('cargo'), turnos = opcoesDe('turno');
     return `<div class="cartao">
       <div class="cartao-topo"><div class="ladrilho p verde">${ic('plus')}</div><div><h3>Adicionar colaborador</h3>
         <p>A pessoa entra na lista do time ${esc(perfil.time)} na hora. Depois é só lançar ausência, atraso ou saída dela, como as outras.</p></div></div>
@@ -975,7 +983,7 @@
       <div class="cartao">
         <div class="perfil-topo"><span class="avatar-p g">${esc(D.iniciais(f.nome))}</span>
           <div><h3>${esc(f.nome)}</h3><div class="chips">${chipSituacao(sit) || '<span class="chip ok">Sem ocorrência</span>'}</div></div></div>
-        <dl class="dados">
+        ${e.editando === f.id ? htmlFormEdicao(f) : `<dl class="dados">
           <div><dt>Matrícula</dt><dd>${f.matricula ? esc(f.matricula) : 'não informada'}</dd></div>
           <div><dt>Cargo</dt><dd>${esc(f.cargo || '—')}</dd></div>
           <div><dt>Turno</dt><dd>${esc(f.turno || '—')}</dd></div>
@@ -987,15 +995,73 @@
         <div class="linha" style="margin-top:.75rem">
           <button class="botao" data-acao-lider="lancarDaPessoa" data-tipo="ausencia">${ic('user')}Lançar ausência ou atraso</button>
           <button class="botao sec" data-acao-lider="lancarDaPessoa" data-tipo="saida">${ic('sair')}Lançar saída antecipada</button>
-        </div>
+          <button class="botao neutro" data-acao-lider="editarPessoa">${ic('edit')}Editar dados</button>
+        </div>`}
       </div>
       <div class="linha entre"><h3 style="margin:0">Indicadores</h3><div class="segmentos" role="group" aria-label="Período">${segmentos}</div></div>
       ${indicadores}`;
   }
 
+  // Corrigir nome, cargo e turno de quem é do time. Matrícula, time e situação só o supervisor muda (o banco também barra).
+  function htmlFormEdicao(f) {
+    const e = lider.equipe, d = e.formEd;
+    const cargos = opcoesDe('cargo'), turnos = opcoesDe('turno');
+    return `<div class="cadastro-campos" style="margin-top:.75rem">
+        <div class="largo"><label class="rotulo" for="eq-ed-nome">Nome completo</label><input id="eq-ed-nome" maxlength="${D.MAX_NOME}" autocomplete="off" value="${esc(d.nome)}"></div>
+        <div><label class="rotulo" for="eq-ed-cargo">Cargo</label><input id="eq-ed-cargo" list="eq-cargos" maxlength="${D.MAX_CARGO}" autocomplete="off" value="${esc(d.cargo)}"><datalist id="eq-cargos">${cargos}</datalist></div>
+        <div><label class="rotulo" for="eq-ed-turno">Turno</label><input id="eq-ed-turno" list="eq-turnos" maxlength="${D.MAX_TURNO}" autocomplete="off" value="${esc(d.turno)}"><datalist id="eq-turnos">${turnos}</datalist></div>
+        <div class="largo"><label class="rotulo" for="eq-ed-mat">Matrícula</label><input id="eq-ed-mat" value="${esc(f.matricula || 'não informada')}" disabled>
+          <div class="contagem-car" style="text-align:left">Matrícula, time e situação só o supervisor altera.</div></div>
+      </div>
+      <div class="linha" style="margin-top:.75rem">
+        <button class="botao g" data-acao-lider="salvarPessoa"${e.ocupado ? ' disabled' : ''}>${ic('save')}${e.ocupado ? 'Salvando…' : 'Salvar'}</button>
+        <button class="botao neutro" data-acao-lider="cancelarEdicaoPessoa">Cancelar</button>
+      </div>`;
+  }
+
+  function abrirEdicao() {
+    const e = lider.equipe, f = lider.funcs.find(x => x.id === e.aberto);
+    if (!f) return;
+    e.editando = f.id; e.formEd = { nome: f.nome || '', cargo: f.cargo || '', turno: f.turno || '' };
+    desenharLiderPainel();
+    const i = $('#eq-ed-nome'); if (i) i.focus();
+  }
+
+  // Mensagem do banco ao corrigir, em português simples
+  function falhaDaCorrecao(err) {
+    const t = String((err && (err.message || err.details)) || '');
+    if (err && err.code === '42501' && /só pode corrigir/.test(t)) return t;
+    if ((err && err.code === '42501') || /row-level security|permission denied/i.test(t)) return 'Sem permissão para corrigir os dados dessa pessoa.';
+    return falha(err);
+  }
+
+  async function salvarCorrecao() {
+    const e = lider.equipe, f = lider.funcs.find(x => x.id === e.editando);
+    if (!f || e.ocupado) return;
+    if (!navigator.onLine) return ctx.aviso('Sem internet: para corrigir os dados é preciso estar conectado.');
+    const r = D.validarCorrecao(e.formEd, lider.funcs, f);
+    if (r.erro) return ctx.aviso(r.erro);
+    if (r.semMudanca) { e.editando = null; desenharLiderPainel(); return ctx.aviso('Nada foi alterado.'); }
+    if (r.quebraHistorico && !confirm(`${f.nome} não tem matrícula. Os lançamentos antigos dela continuam no nome anterior e deixam de aparecer neste perfil. O ideal é pedir ao supervisor para cadastrar a matrícula antes de trocar o nome. Trocar o nome mesmo assim?`)) return;
+    if (r.aviso && !confirm(r.aviso.replace('Cadastrar outra pessoa com o mesmo nome?', 'Salvar mesmo assim?'))) return;
+    e.ocupado = true; desenharLiderPainel();
+    try {
+      const { data, error } = await supa.from('funcionarios').update({ nome: r.dados.nome, cargo: r.dados.cargo, turno: r.dados.turno }).eq('id', f.id)
+        .select('id,matricula,nome,cargo,turno,ativo,criado_em').maybeSingle();
+      if (error) throw error;
+      // sem a regra no banco ele não dá erro: só não altera ninguém (nenhuma linha volta)
+      if (!data) { ctx.aviso('A correção de dados pelo líder ainda não foi liberada no banco. Peça ao supervisor para ativar (é uma configuração única) e tente de novo.'); return; }
+      lider.funcs = lider.funcs.map(x => (x.id === data.id ? data : x)).sort(ordemPorNome);
+      mudarCache(perfil.user_id, c => { c.funcs = lider.funcs; });
+      e.editando = null;
+      ctx.aviso(`Dados de ${data.nome.split(' ')[0]} atualizados.`);
+    } catch (err) { ctx.aviso(falhaDaCorrecao(err)); }
+    finally { e.ocupado = false; desenharLiderPainel(); }
+  }
+
   function abrirPessoa(fid) {
     if (!lider.funcs.some(x => x.id === fid)) return;
-    lider.equipe.aberto = fid; lider.equipe.verTudo = false;
+    lider.equipe.aberto = fid; lider.equipe.verTudo = false; lider.equipe.editando = null;
     desenharLiderPainel(); window.scrollTo(0, 0);
   }
   function mudarPeriodo(dias) {
@@ -1517,7 +1583,7 @@
       const b = e.target.closest('[data-aba-lider]');
       if (!b || !perfil || perfil.papel !== 'lider') return;
       lider.aba = b.dataset.abaLider; lider.editando = null;
-      if (lider.aba === 'equipe') lider.equipe.aberto = null;   // tocar na aba volta para a lista
+      if (lider.aba === 'equipe') { lider.equipe.aberto = null; lider.equipe.editando = null; }   // tocar na aba volta para a lista
       desenharLiderPainel(); window.scrollTo(0, 0);
     });
     document.addEventListener('visibilitychange', () => { if (!document.hidden && perfil && perfil.papel === 'lider') recarregarLider(); });

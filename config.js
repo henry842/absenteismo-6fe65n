@@ -4,5 +4,5 @@ window.CONFIG = {
   supabaseUrl: 'https://ztmwsvfqlozilwnqkrom.supabase.co',
   supabaseChave: 'sb_publishable_qnrqdMMClkJOjZaB0gOjVw_PwslhOin',
   // Mostrada na tela de login e no menu, para saber se o aparelho está com a versão mais nova (o número é o mesmo do cache do sw.js)
-  versao: 'v17 · 30/09/2026',
+  versao: 'v18 · 30/09/2026',
 };

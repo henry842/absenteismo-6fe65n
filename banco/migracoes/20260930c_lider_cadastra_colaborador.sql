@@ -6,8 +6,8 @@
 -- Sem esta migração o sistema continua igual: a aba Equipe mostra a lista e os indicadores (só leitura), e o botão
 -- "Cadastrar colaborador" avisa que o cadastro ainda não foi liberado.
 --
--- Segurança: o líder só consegue INSERIR pessoa ATIVA e só no time dele. Continua sem poder alterar, desativar ou apagar
--- ninguém (isso é do supervisor). Cada cadastro fica na auditoria (quem fez, quando, com quais dados).
+-- Segurança: o líder só consegue INSERIR pessoa ATIVA e só no time dele. Esta migração não dá poder de desativar nem apagar ninguém
+-- (isso é do supervisor); corrigir nome, cargo e turno é a migração 20260930d, à parte. Cada cadastro fica na auditoria.
 -- Se algum teste falhar, a migração inteira é desfeita e nada muda.
 
 -- 1) Regra: líder cadastra no próprio time
@@ -69,9 +69,12 @@ begin
 
     insert into public.funcionarios (nome, matricula, "time") values ('Teste Sem Matricula A', '', tim), ('Teste Sem Matricula B', '', tim);   -- sem matrícula pode repetir (vazio não conta)
 
-    update public.funcionarios set nome = 'Alterado' where matricula = '9990001';
-    get diagnostics n = row_count;
-    if n <> 0 then raise exception 'T5: o líder não pode alterar colaborador'; end if;
+    -- desativar continua só com o supervisor (vale com ou sem a migração 20260930d, que deixa o líder corrigir nome, cargo e turno)
+    begin
+      update public.funcionarios set ativo = false where matricula = '9990001';
+      get diagnostics n = row_count;
+      if n <> 0 then raise exception 'T5: o líder não pode desativar colaborador'; end if;
+    exception when insufficient_privilege then null; end;
     delete from public.funcionarios where matricula = '9990001';
     get diagnostics n = row_count;
     if n <> 0 then raise exception 'T6: o líder não pode apagar colaborador'; end if;
