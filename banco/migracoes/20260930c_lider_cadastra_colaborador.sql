@@ -1,6 +1,7 @@
 -- Migração: o líder passa a cadastrar colaborador no PRÓPRIO time (botão "Adicionar colaborador" da aba Equipe), 30/09/2026.
--- STATUS: preparada, AINDA NÃO aplicada (o ambiente bloqueia mudanças no banco de produção feitas por mim). Aplicar pelo SQL Editor.
--- Como aplicar: Supabase > SQL Editor > cole este arquivo inteiro > Run. Se aparecer "Success. No rows returned", deu certo.
+-- STATUS: APLICADA no banco de produção em 02/10/2026 (a pedido do usuário, depois que o botão avisou "ainda não foi liberado"). O teste embutido passou e não deixou sobra:
+-- regra func_lider_inserir e gatilho funcionarios_lider_limite existem, nenhum registro de teste ficou, nada de dado real mudou.
+-- Para aplicar de novo (é seguro): Supabase > SQL Editor > cole este arquivo inteiro > Run.
 --
 -- O que muda: só ACRESCENTA uma regra e uma trava. Não apaga nem altera nenhum dado (lançamentos de hoje, envios, cadastro, logins).
 -- Sem esta migração o sistema continua igual: a aba Equipe mostra a lista e os indicadores (só leitura), e o botão

@@ -1,6 +1,6 @@
 -- Migração: o líder passa a CORRIGIR nome, cargo e turno de quem é do PRÓPRIO time (botão "Editar dados" do perfil, aba Equipe), 30/09/2026.
--- STATUS: preparada, AINDA NÃO aplicada (o ambiente bloqueia mudanças no banco de produção feitas por mim). Aplicar pelo SQL Editor.
--- Como aplicar: Supabase > SQL Editor > cole este arquivo inteiro > Run. Se aparecer "Success. No rows returned", deu certo.
+-- STATUS: APLICADA no banco de produção pelo usuário, no SQL Editor (conferida em 02/10/2026: regra func_lider_corrigir e gatilho funcionarios_lider_corrige existem).
+-- Para aplicar de novo (é seguro): Supabase > SQL Editor > cole este arquivo inteiro > Run.
 -- Independe da migração 20260930c (cadastro): pode rodar antes, depois ou sem ela.
 --
 -- O que muda: só ACRESCENTA uma regra e uma trava. Não apaga nem altera nenhum dado agora.

@@ -1,5 +1,6 @@
 -- RETRATO do banco (schema public + gatilhos em auth.users) em 30/09/2026, DEPOIS das migrações
--- banco/migracoes/20260930_mfa_e_login_sem_email.sql e 20260930b_remover_segundo_passo.sql (o segundo passo foi retirado). Serve para conferir e para reconstruir o banco.
+-- banco/migracoes/20260930_mfa_e_login_sem_email.sql, 20260930b_remover_segundo_passo.sql (o segundo passo foi retirado),
+-- 20260930c_lider_cadastra_colaborador.sql e 20260930d_lider_corrige_colaborador.sql (o líder cadastra e corrige gente do próprio time). Serve para conferir e para reconstruir o banco.
 -- Não é para rodar de uma vez: a ordem das linhas é a de leitura (tabelas, regras de acesso, restrições, índices, políticas, funções, gatilhos).
 -- Quando aplicar uma migração nova, gere este retrato de novo e substitua o arquivo.
 
@@ -84,6 +85,8 @@ create policy env_lider_apagar on public.envios as permissive for delete to auth
 create policy env_lider_inserir on public.envios as permissive for insert to authenticated with check (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND (lider_id = auth.uid()) AND ((data >= (CURRENT_DATE - 7)) AND (data <= (CURRENT_DATE + 1)))));
 create policy env_supervisor on public.envios as permissive for all to authenticated using ((papel_atual() = 'supervisor'::text)) with check ((papel_atual() = 'supervisor'::text));
 create policy func_ler on public.funcionarios as permissive for select to authenticated using (((papel_atual() = 'supervisor'::text) OR ((papel_atual() = 'lider'::text) AND ("time" = time_atual()))));
+create policy func_lider_corrigir on public.funcionarios as permissive for update to authenticated using (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND ativo)) with check (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND ativo));
+create policy func_lider_inserir on public.funcionarios as permissive for insert to authenticated with check (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND ativo));
 create policy func_supervisor_escrever on public.funcionarios as permissive for all to authenticated using ((papel_atual() = 'supervisor'::text)) with check ((papel_atual() = 'supervisor'::text));
 create policy lanc_ler on public.lancamentos as permissive for select to authenticated using (((papel_atual() = 'supervisor'::text) OR ((papel_atual() = 'lider'::text) AND ("time" = time_atual()))));
 create policy lanc_lider_alterar on public.lancamentos as permissive for update to authenticated using (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND (data >= (CURRENT_DATE - 7)))) with check (((papel_atual() = 'lider'::text) AND ("time" = time_atual()) AND (lider_id = auth.uid()) AND ((data >= (CURRENT_DATE - 7)) AND (data <= (CURRENT_DATE + 1)))));
@@ -114,6 +117,21 @@ begin
   end if;
   return new;
 end $function$;
+CREATE OR REPLACE FUNCTION public.limitar_funcionarios_do_lider()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if public.papel_atual() is distinct from 'lider' then return new; end if;
+  if new.matricula <> '' and exists (select 1 from public.funcionarios f where f."time" = new."time" and f.ativo and f.matricula = new.matricula) then
+    raise exception 'Já existe alguém com essa matrícula no time.' using errcode = '23505';
+  end if;
+  if (select count(*) from public.funcionarios f where f."time" = new."time" and f.ativo) >= 500 then
+    raise exception 'O time já tem 500 colaboradores, que é o limite.' using errcode = '54000';
+  end if;
+  return new;
+end $function$;
 CREATE OR REPLACE FUNCTION public.limitar_lancamentos()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -122,6 +140,19 @@ AS $function$
 begin
   if (select count(*) from public.lancamentos where data = new.data and time = new.time) >= 500 then
     raise exception 'Limite de lançamentos do dia atingido para este time' using errcode = '54000';
+  end if;
+  return new;
+end $function$;
+CREATE OR REPLACE FUNCTION public.restringir_correcao_do_lider()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if public.papel_atual() is distinct from 'lider' then return new; end if;
+  if new.id is distinct from old.id or new.matricula is distinct from old.matricula or new."time" is distinct from old."time"
+     or new.ativo is distinct from old.ativo or new.criado_em is distinct from old.criado_em then
+    raise exception 'O líder só pode corrigir nome, cargo e turno.' using errcode = '42501';
   end if;
   return new;
 end $function$;
@@ -235,6 +266,8 @@ AS $function$ select time from public.perfis where user_id = auth.uid() and ativ
 
 CREATE TRIGGER auditoria_envios AFTER INSERT OR DELETE OR UPDATE ON public.envios FOR EACH ROW EXECUTE FUNCTION registrar_auditoria();
 CREATE TRIGGER auditoria_funcionarios AFTER INSERT OR DELETE OR UPDATE ON public.funcionarios FOR EACH ROW EXECUTE FUNCTION registrar_auditoria();
+CREATE TRIGGER funcionarios_lider_corrige BEFORE UPDATE ON public.funcionarios FOR EACH ROW EXECUTE FUNCTION restringir_correcao_do_lider();
+CREATE TRIGGER funcionarios_lider_limite BEFORE INSERT ON public.funcionarios FOR EACH ROW EXECUTE FUNCTION limitar_funcionarios_do_lider();
 CREATE TRIGGER auditoria_lancamentos AFTER INSERT OR DELETE OR UPDATE ON public.lancamentos FOR EACH ROW EXECUTE FUNCTION registrar_auditoria();
 CREATE TRIGGER lancamentos_atualizado BEFORE UPDATE ON public.lancamentos FOR EACH ROW EXECUTE FUNCTION marcar_atualizado();
 CREATE TRIGGER lancamentos_limite BEFORE INSERT ON public.lancamentos FOR EACH ROW EXECUTE FUNCTION limitar_lancamentos();
