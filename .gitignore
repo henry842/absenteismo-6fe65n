@@ -30,3 +30,6 @@ video/demo/saida_zh/
 
 # Prints das telas do líder (podem mostrar nomes reais de funcionários): nunca vão para o GitHub
 docs/prints-lider/
+
+# Instalação local da ferramenta de ataque (banco/ferramentas)
+node_modules/
